@@ -19,7 +19,25 @@ from twitchdl import webapp as w  # noqa: E402
 from twitchdl.i18n import LANGUAGES, DEFAULT_LANG  # noqa: E402
 
 
-def main() -> None:
+def _urls_from_sitemap() -> list:
+    """Liest die LIVE-Sitemap und gibt exakt deren <loc>-URLs zurück (= ganze Sitemap)."""
+    import re
+    try:
+        r = urllib.request.urlopen(BASE + "/sitemap.xml", timeout=25)
+        xml = r.read().decode("utf-8", "ignore")
+        locs = re.findall(r"<loc>\s*([^<\s]+)\s*</loc>", xml)
+        # nur URLs des eigenen Hosts (Sicherheit), Reihenfolge erhalten, dedupe
+        seen, out = set(), []
+        for u in locs:
+            if u.startswith(BASE) and u not in seen:
+                seen.add(u); out.append(u)
+        return out
+    except Exception as e:
+        print("  (Sitemap nicht lesbar, nutze generierte Liste):", e)
+        return []
+
+
+def _urls_generated() -> list:
     urls = [BASE + "/"]
     for c in LANGUAGES:
         if c != DEFAULT_LANG:
@@ -28,7 +46,13 @@ def main() -> None:
         urls.append(BASE + w.blog_index_path(c))
     for s in w.BLOG_ORDER:
         for c in LANGUAGES:
-            urls.append(BASE + w.blog_post_path(c, s))
+            if w.blog_post_data(s, c):  # nur real existierende Posts
+                urls.append(BASE + w.blog_post_path(c, s))
+    return urls
+
+
+def main() -> None:
+    urls = _urls_from_sitemap() or _urls_generated()
 
     host = BASE.split("//", 1)[1]
     payload = {

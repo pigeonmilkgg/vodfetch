@@ -37,6 +37,7 @@ DEFAULT_LANG = "en"
 # --------------------------------------------------------------------------- #
 EN = {
     "locale": "en_US",
+    "org_description": "Free, open-source tool to download Twitch VODs, clips and live streams as MP4.",
     "meta_title": "Twitch Downloader — Download Twitch VODs, Clips & Streams to MP4",
     "meta_description": (
         "Free Twitch downloader to save Twitch VODs, clips and live streams as MP4 in "
@@ -216,6 +217,7 @@ EN = {
 # --------------------------------------------------------------------------- #
 DE = {
     "locale": "de_DE",
+    "org_description": "Kostenloses Open-Source-Tool zum Herunterladen von Twitch-VODs, -Clips und -Live-Streams als MP4.",
     "meta_title": "Twitch Downloader — Twitch VODs, Clips & Streams als MP4 herunterladen",
     "meta_description": (
         "Kostenloser Twitch Downloader: Twitch VODs, Clips und Live-Streams als MP4 in "

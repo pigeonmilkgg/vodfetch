@@ -33,9 +33,10 @@ import datetime as _dt
 BRAND = "Twitch Downloader"
 BUILD_DATE = os.environ.get("TWITCHDL_BUILD_DATE") or _dt.date.today().isoformat()
 # Optionale Entitäts-Verknüpfungen (GitHub/Social) für E-E-A-T — per Env setzbar.
-SAMEAS = [u.strip() for u in os.environ.get("TWITCHDL_SAMEAS", "").split(",") if u.strip()]
+SAMEAS = [u.strip() for u in os.environ.get(
+    "TWITCHDL_SAMEAS", "https://github.com/pigeonmilkgg/vodfetch").split(",") if u.strip()]
 # IndexNow-Key (Datei muss unter /{key}.txt erreichbar sein). Per Env überschreibbar.
-INDEXNOW_KEY = os.environ.get("TWITCHDL_INDEXNOW_KEY", "8f3a2b7c9d1e4f5a6b8c0d2e3f4a5b6c")
+INDEXNOW_KEY = os.environ.get("TWITCHDL_INDEXNOW_KEY", "ebcea84deab6403191d00d65bf0a7de1")
 # Optionale Webmaster-Verifizierung per Meta-Tag (Google URL-prefix / Bing). DNS-Verify braucht das nicht.
 GSC_VERIFY = os.environ.get("TWITCHDL_GSC_VERIFY", "")
 BING_VERIFY = os.environ.get("TWITCHDL_BING_VERIFY", "")
@@ -103,101 +104,134 @@ def blog_post_data(slug: str, lang: str) -> "dict | None":
 # JSON-LD (strukturierte Daten für SEO + AEO)
 # --------------------------------------------------------------------------- #
 def _jsonld_tags(blocks: list) -> str:
-    out = []
+    """Bündelt alle Knoten in EINEN @graph (ein <script>) und entfernt per-Block @context,
+    damit Suchmaschinen/LLMs die Entitäten über stabile @id deduplizieren & verknüpfen können."""
+    nodes = []
     for b in blocks:
-        payload = json.dumps(b, ensure_ascii=False).replace("<", "\\u003c")
-        out.append(f'<script type="application/ld+json">{payload}</script>')
-    return "\n".join(out)
+        b = dict(b)
+        b.pop("@context", None)
+        nodes.append(b)
+    graph = {"@context": "https://schema.org", "@graph": nodes}
+    payload = json.dumps(graph, ensure_ascii=False).replace("<", "\\u003c")
+    return f'<script type="application/ld+json">{payload}</script>'
 
 
-def _org() -> dict:
+def _ref(suffix: str) -> dict:
+    """Referenz auf einen Graph-Knoten per @id, z. B. _ref('/#organization')."""
+    return {"@id": base_url() + suffix}
+
+
+ORG_DESC_EN = "Free, open-source tool to download Twitch VODs, clips and live streams as MP4."
+
+
+def _logo_node() -> dict:
+    bu = base_url()
+    return {
+        "@type": "ImageObject", "@id": bu + "/#logo",
+        "url": bu + "/assets/logo.png", "contentUrl": bu + "/assets/logo.png",
+        "width": 512, "height": 512, "caption": BRAND,
+    }
+
+
+def _org_node(t: dict) -> dict:
+    """Die EINE Organization-Entität (site-weit stabile @id) — Marke/Publisher/Author."""
     bu = base_url()
     o = {
-        "@type": "Organization",
-        "name": BRAND,
-        "url": bu + "/",
-        "logo": {"@type": "ImageObject", "url": bu + "/assets/logo.png", "width": 512, "height": 512},
-        "description": "Free, open-source tool to download Twitch VODs, clips and live streams as MP4.",
+        "@type": "Organization", "@id": bu + "/#organization",
+        "name": BRAND, "url": bu + "/",
+        "description": t.get("org_description") or ORG_DESC_EN,
+        "logo": _ref("/#logo"), "image": _ref("/#logo"),
+        "brand": {"@type": "Brand", "name": BRAND},
+        "knowsAbout": ["Twitch", "Twitch VOD", "Twitch clips", "Live stream recording",
+                       "VOD archiving", "HLS", "MP4", "Video downloading"],
     }
     if SAMEAS:
         o["sameAs"] = SAMEAS
     return o
 
 
+def _website_node() -> dict:
+    """Die EINE WebSite-Entität — sprachneutral (alle 14 Sprachen)."""
+    bu = base_url()
+    return {
+        "@type": "WebSite", "@id": bu + "/#website",
+        "name": BRAND, "url": bu + "/",
+        "description": "Free Twitch downloader to save Twitch VODs, clips and live streams as MP4.",
+        "publisher": _ref("/#organization"),
+        "inLanguage": [LANGUAGES[c]["hreflang"] for c in LANGUAGES],
+    }
+
+
+def _primaryimage_node(image_id: str) -> dict:
+    bu = base_url()
+    return {
+        "@type": "ImageObject", "@id": image_id,
+        "url": bu + "/assets/og.png", "contentUrl": bu + "/assets/og.png",
+        "width": 1200, "height": 630,
+    }
+
+
+# Rückwärtskompatibel: voller Organization-Knoten / Publisher-Referenz.
+def _org() -> dict:
+    return _org_node(get_strings(DEFAULT_LANG))
+
+
 def _publisher() -> dict:
-    return _org()
+    return _ref("/#organization")
 
 
 def build_jsonld(t: dict, lang: str, canonical: str) -> str:
     hreflang = LANGUAGES[lang]["hreflang"]
     bu = base_url()
-    website = {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": t["brand"],
-        "url": bu + "/",
-        "inLanguage": hreflang,
-        "description": t["meta_description"],
-        "publisher": _org(),
-    }
     software = {
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": t["brand"],
-        "url": canonical,
+        "@type": ["SoftwareApplication", "WebApplication"], "@id": bu + "/#app",
+        "name": t["brand"], "url": bu + "/",
         "applicationCategory": "MultimediaApplication",
-        "operatingSystem": "Windows, macOS, Linux, Web",
+        "applicationSubCategory": "Video Downloader",
+        "operatingSystem": "All",
+        "browserRequirements": "Requires a modern web browser with JavaScript enabled.",
         "inLanguage": hreflang,
         "description": t["meta_description"],
-        "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+        "isAccessibleForFree": True,
+        "license": "https://opensource.org/licenses/MIT",
+        "downloadUrl": bu + "/",
+        "screenshot": _ref("/#primaryimage"),
+        # Bewusst KEIN aggregateRating/review: es gibt keine echten Bewertungen — nicht erfinden.
+        "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD", "category": "free"},
         "featureList": [f["title"] for f in t["features"]],
-        "publisher": _org(),
+        "dateModified": BUILD_DATE,
+        "publisher": _ref("/#organization"),
+        "isPartOf": _ref("/#website"),
     }
     webpage = {
-        "@context": "https://schema.org",
-        "@type": "WebPage",
-        "name": t["meta_title"],
-        "url": canonical,
-        "inLanguage": hreflang,
-        "description": t["meta_description"],
-        "dateModified": BUILD_DATE,
-        "isPartOf": {"@type": "WebSite", "name": t["brand"], "url": bu + "/"},
-        "primaryImageOfPage": {"@type": "ImageObject", "url": bu + "/assets/og.png"},
+        "@type": "WebPage", "@id": bu + "/#webpage", "url": bu + "/",
+        "name": t["meta_title"], "description": t["meta_description"], "inLanguage": hreflang,
+        "datePublished": BUILD_DATE, "dateModified": BUILD_DATE,
+        "isPartOf": _ref("/#website"), "about": _ref("/#organization"),
+        "mainEntity": _ref("/#app"), "primaryImageOfPage": _ref("/#primaryimage"),
         "speakable": {"@type": "SpeakableSpecification",
                       "cssSelector": ["h1", ".lead", ".faq summary h3", ".faq-a p"]},
-        "publisher": _org(),
     }
     faqpage = {
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        "inLanguage": hreflang,
+        "@type": "FAQPage", "@id": bu + "/#faq", "inLanguage": hreflang,
+        "isPartOf": _ref("/#webpage"),
         "mainEntity": [
-            {
-                "@type": "Question",
-                "name": f["q"],
-                "acceptedAnswer": {"@type": "Answer", "text": f["a"]},
-            }
+            {"@type": "Question", "name": f["q"],
+             "acceptedAnswer": {"@type": "Answer", "text": f["a"]}}
             for f in t["faqs"]
         ],
     }
     howto = {
-        "@context": "https://schema.org",
-        "@type": "HowTo",
-        "name": t["how_h2"],
-        "inLanguage": hreflang,
+        "@type": "HowTo", "@id": bu + "/#howto", "name": t["how_h2"], "inLanguage": hreflang,
+        "isPartOf": _ref("/#webpage"),
         "step": [
             {"@type": "HowToStep", "position": i + 1, "name": s["title"], "text": s["desc"]}
             for i, s in enumerate(t["how_steps"])
         ],
     }
-    breadcrumb = {
-        "@context": "https://schema.org",
-        "@type": "BreadcrumbList",
-        "itemListElement": [
-            {"@type": "ListItem", "position": 1, "name": t["brand"], "item": canonical},
-        ],
-    }
-    return _jsonld_tags([website, software, webpage, faqpage, howto, breadcrumb])
+    # Home: KEINE BreadcrumbList (1-Item-Breadcrumb ist wertlos); echte Breadcrumbs auf Unterseiten.
+    return _jsonld_tags([_org_node(t), _logo_node(), _website_node(), software, webpage,
+                         _primaryimage_node(bu + "/#primaryimage"), faqpage, howto])
 
 
 # --------------------------------------------------------------------------- #
@@ -514,20 +548,29 @@ def render_blog_index(lang: str) -> str:
         items.append({"@type": "ListItem", "position": pos,
                       "url": bu + href, "name": d["title"]})
 
-    blog_ld = {"@context": "https://schema.org", "@type": "Blog", "name": t["blog_h1"],
+    collection_ld = {"@type": "CollectionPage", "@id": canonical + "#webpage", "url": canonical,
+                     "name": f'{t["blog_h1"]} | {BRAND}', "description": t["blog_sub"],
+                     "inLanguage": hreflang, "isPartOf": _ref("/#website"),
+                     "about": _ref("/#organization"),
+                     "breadcrumb": {"@id": canonical + "#breadcrumb"},
+                     "mainEntity": {"@id": canonical + "#blog"}}
+    blog_ld = {"@type": "Blog", "@id": canonical + "#blog", "name": t["blog_h1"],
                "url": canonical, "inLanguage": hreflang, "description": t["blog_sub"],
-               "publisher": _publisher()}
-    itemlist_ld = {"@context": "https://schema.org", "@type": "ItemList", "itemListElement": items}
-    crumbs_ld = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
-        {"@type": "ListItem", "position": 1, "name": "Twitch Downloader", "item": bu + lang_path(lang)},
+               "isPartOf": _ref("/#website"), "publisher": _ref("/#organization"),
+               "mainEntity": {"@id": canonical + "#itemlist"}}
+    itemlist_ld = {"@type": "ItemList", "@id": canonical + "#itemlist",
+                   "numberOfItems": len(items), "itemListElement": items}
+    crumbs_ld = {"@type": "BreadcrumbList", "@id": canonical + "#breadcrumb", "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": BRAND, "item": bu + lang_path(lang)},
         {"@type": "ListItem", "position": 2, "name": t["nav_blog"], "item": canonical},
     ]}
 
     head = _head(lang, title=f'{t["blog_h1"]} | Twitch Downloader',
                  description=t["blog_sub"], keywords=t["meta_keywords"], canonical=canonical,
                  alt_pairs=_blog_index_alt_pairs(),
-                 jsonld=_jsonld_tags([blog_ld, itemlist_ld, crumbs_ld]), og_type="website",
-                 md_href=md_href_for(blog_index_path(lang)))
+                 jsonld=_jsonld_tags([_org_node(t), _logo_node(), _website_node(),
+                                      collection_ld, blog_ld, itemlist_ld, crumbs_ld]),
+                 og_type="website", md_href=md_href_for(blog_index_path(lang)))
     body = f"""{_topbar(t, lang, blog=True)}
 <main>
   <section class="hero bloghero">
@@ -582,30 +625,46 @@ def render_blog_post(lang: str, slug: str) -> "str | None":
         related.append(f'<article class="card"><h3><a href="{esc(href)}">{esc(od["title"])}</a></h3>'
                        f'<p>{esc(od["excerpt"])}</p></article>')
 
-    # JSON-LD
-    article_ld = {"@context": "https://schema.org", "@type": "BlogPosting",
+    # JSON-LD (Single @graph mit @id-Verknüpfung)
+    page_id = canonical + "#webpage"
+    img_id = canonical + "#primaryimage"
+    wc = sum(len(p.split()) for s in d.get("sections", []) for p in s.get("paragraphs", []))
+    wc += sum(len(s.get("desc", "").split()) for s in d.get("how_steps", []))
+    wc += sum(len(f.get("a", "").split()) for f in d.get("faqs", []))
+    article_ld = {"@type": "BlogPosting", "@id": canonical + "#article",
                   "headline": d["title"], "description": d["excerpt"], "inLanguage": hreflang,
-                  "mainEntityOfPage": canonical, "image": bu + "/assets/og.png",
-                  "isPartOf": {"@type": "WebSite", "name": BRAND, "url": bu + "/"},
+                  "url": canonical, "mainEntityOfPage": {"@id": page_id},
+                  "image": {"@id": img_id},
+                  "isPartOf": _ref("/#website"),
+                  "author": _ref("/#organization"), "publisher": _ref("/#organization"),
+                  "articleSection": t["nav_blog"], "keywords": t["meta_keywords"],
+                  "breadcrumb": {"@id": canonical + "#breadcrumb"},
                   "speakable": {"@type": "SpeakableSpecification",
-                                "cssSelector": ["h1", ".answer", ".faq summary h3", ".faq-a p"]},
-                  "author": _org(), "publisher": _org()}
+                                "cssSelector": ["h1", ".answer", ".faq summary h3", ".faq-a p"]}}
+    if wc:
+        article_ld["wordCount"] = wc
     if date:
         article_ld["datePublished"] = date
-        article_ld["dateModified"] = date
-    blocks = [article_ld]
+        article_ld["dateModified"] = max(date, BUILD_DATE)
+    webpage_ld = {"@type": "WebPage", "@id": page_id, "url": canonical, "inLanguage": hreflang,
+                  "isPartOf": _ref("/#website"), "primaryImageOfPage": {"@id": img_id},
+                  "breadcrumb": {"@id": canonical + "#breadcrumb"},
+                  "mainEntity": {"@id": canonical + "#article"}}
+    blocks = [_org_node(t), _logo_node(), _website_node(), article_ld, webpage_ld,
+              _primaryimage_node(img_id)]
     if d.get("how_steps"):
-        blocks.append({"@context": "https://schema.org", "@type": "HowTo", "name": d["title"],
-                       "inLanguage": hreflang,
+        blocks.append({"@type": "HowTo", "@id": canonical + "#howto", "name": d["title"],
+                       "inLanguage": hreflang, "isPartOf": {"@id": page_id},
                        "step": [{"@type": "HowToStep", "position": i + 1, "name": s["title"], "text": s["desc"]}
                                 for i, s in enumerate(d["how_steps"])]})
     if d.get("faqs"):
-        blocks.append({"@context": "https://schema.org", "@type": "FAQPage", "inLanguage": hreflang,
+        blocks.append({"@type": "FAQPage", "@id": canonical + "#faq", "inLanguage": hreflang,
+                       "isPartOf": {"@id": page_id},
                        "mainEntity": [{"@type": "Question", "name": f["q"],
                                        "acceptedAnswer": {"@type": "Answer", "text": f["a"]}}
                                       for f in d["faqs"]]})
-    blocks.append({"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
-        {"@type": "ListItem", "position": 1, "name": "Twitch Downloader", "item": bu + lang_path(lang)},
+    blocks.append({"@type": "BreadcrumbList", "@id": canonical + "#breadcrumb", "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": BRAND, "item": bu + lang_path(lang)},
         {"@type": "ListItem", "position": 2, "name": t["nav_blog"], "item": bu + blog_index_path(lang)},
         {"@type": "ListItem", "position": 3, "name": d["title"], "item": canonical},
     ]})
@@ -1414,18 +1473,18 @@ def render_about(lang: str) -> str:
     canonical = bu + about_path(lang)
     hreflang = LANGUAGES[lang]["hreflang"]
     secs = "".join(f'<h2>{esc(s["heading"])}</h2><p>{esc(s["body"])}</p>' for s in t["about_sections"])
-    about_ld = {"@context": "https://schema.org", "@type": "AboutPage", "name": t["about_h1"],
-                "url": canonical, "inLanguage": hreflang, "description": t["about_lead"],
-                "isPartOf": {"@type": "WebSite", "name": BRAND, "url": bu + "/"},
-                "about": _org(), "publisher": _org()}
-    org_ld = dict(_org()); org_ld["@context"] = "https://schema.org"
-    crumbs = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
+    about_ld = {"@type": "AboutPage", "@id": canonical + "#webpage", "url": canonical,
+                "name": t["about_h1"], "description": t["about_lead"], "inLanguage": hreflang,
+                "isPartOf": _ref("/#website"), "about": _ref("/#organization"),
+                "mainEntity": _ref("/#organization"),
+                "breadcrumb": {"@id": canonical + "#breadcrumb"}}
+    crumbs = {"@type": "BreadcrumbList", "@id": canonical + "#breadcrumb", "itemListElement": [
         {"@type": "ListItem", "position": 1, "name": BRAND, "item": bu + lang_path(lang)},
         {"@type": "ListItem", "position": 2, "name": t["nav_about"], "item": canonical}]}
     head = _head(lang, title=f'{t["about_h1"]} | Twitch Downloader', description=t["about_lead"],
                  keywords=t["meta_keywords"], canonical=canonical, alt_pairs=_about_alt_pairs(),
-                 jsonld=_jsonld_tags([about_ld, org_ld, crumbs]), og_type="website",
-                 md_href=md_href_for(about_path(lang)))
+                 jsonld=_jsonld_tags([_org_node(t), _logo_node(), _website_node(), about_ld, crumbs]),
+                 og_type="website", md_href=md_href_for(about_path(lang)))
     body = f"""{_topbar(t, lang, blog=True)}
 <main>
   <article class="article">
