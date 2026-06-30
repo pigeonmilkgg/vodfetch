@@ -448,6 +448,7 @@ def build_body(t: dict, lang: str) -> str:
     <p class="lead">{esc(t["hero_sub"])}</p>
 
     <div class="tool" id="tool">
+      <div class="dropmsg" aria-hidden="true"><span>⬇ {esc(t.get("tool_drop_msg", "Drop to analyze"))}</span></div>
       <label for="url">{esc(t["tool_url_label"])}</label>
       <div class="urlrow">
         <input id="url" type="text" inputmode="url" autocomplete="off" spellcheck="false"
@@ -455,6 +456,7 @@ def build_body(t: dict, lang: str) -> str:
         <button class="pastebtn" id="pasteBtn" type="button" onclick="pasteUrl()"
                 title="{esc(t["tool_paste_title"])}" aria-label="{esc(t["tool_paste_title"])}">📋</button>
       </div>
+      <p class="drophint">{esc(t.get("tool_drop_hint", "Paste a link, drop it here, or just type a channel name"))}</p>
       <button class="primary" id="analyzeBtn" onclick="analyze()">{esc(t["tool_analyze"])}</button>
       <div class="micro hidden" id="micro" aria-live="polite"></div>
 
@@ -1011,6 +1013,58 @@ html{scroll-behavior:smooth}
 .whythanks{margin-top:18px;border-top:1px solid var(--border);padding-top:16px}
 .whythanks h3{margin:0 0 6px;color:var(--purple);font-size:17px}
 .whyshare{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+/* ===== Premium hero / link-drop redesign ===== */
+.hero{position:relative;padding:56px 0 18px;overflow:visible}
+.hero::before{content:"";position:absolute;left:50%;top:-30px;width:min(1000px,128%);height:600px;transform:translateX(-50%);
+  background:radial-gradient(ellipse 50% 46% at 50% 34%,rgba(145,71,255,.30),rgba(145,71,255,.07) 55%,transparent 72%);
+  z-index:-1;pointer-events:none}
+.hero h1{font-size:54px;line-height:1.04;background:linear-gradient(180deg,#fff 38%,#cdb6ff);
+  -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.hero h1 span{-webkit-text-fill-color:initial;background:none;color:var(--muted)}
+.badge{box-shadow:0 0 0 1px rgba(145,71,255,.25),0 10px 34px -10px rgba(145,71,255,.55)}
+/* the star: the link-drop card */
+.tool{position:relative;max-width:760px;margin:36px auto 14px;padding:30px 30px 26px;border-radius:22px;
+  border:1.5px solid transparent;
+  background:linear-gradient(var(--panel),var(--panel)) padding-box,
+    linear-gradient(135deg,rgba(145,71,255,.95),rgba(119,44,232,.25) 52%,rgba(145,71,255,.7)) border-box;
+  box-shadow:0 40px 90px -30px rgba(145,71,255,.5),0 24px 60px rgba(0,0,0,.55);
+  transition:box-shadow .25s,transform .2s}
+.tool:focus-within{box-shadow:0 46px 116px -26px rgba(145,71,255,.72),0 24px 60px rgba(0,0,0,.55)}
+.tool>label{font-size:13px;letter-spacing:.6px;color:#c8a6ff}
+.urlrow{gap:10px}
+#url{height:64px;padding:0 18px;font-size:17px;border-radius:14px;background:var(--bg)}
+#url::placeholder{color:#83838d}
+#url:focus{border-color:var(--purple);box-shadow:0 0 0 4px rgba(145,71,255,.30)}
+.pastebtn{font-size:21px;padding:0 19px;border-radius:14px;color:#c8a6ff;background:rgba(145,71,255,.12)}
+.pastebtn:hover{background:rgba(145,71,255,.20);border-color:var(--purple)}
+.drophint{margin:11px 2px 0;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.drophint::before{content:"⬇";color:var(--purple);font-weight:800;font-size:14px}
+/* award-winning CTA */
+#analyzeBtn{margin-top:16px;height:62px;font-size:18px;font-weight:800;border-radius:14px;letter-spacing:.2px;color:#fff;
+  background:linear-gradient(135deg,#a35bff,#7b2ff7 58%,#9147ff);background-size:180% 180%;
+  box-shadow:0 16px 40px -10px rgba(145,71,255,.7);position:relative;overflow:hidden}
+#analyzeBtn::after{content:"→";display:inline-block;margin-left:10px;transition:transform .2s}
+#analyzeBtn:hover{transform:translateY(-2px);background-position:100% 0;box-shadow:0 24px 56px -10px rgba(145,71,255,.9)}
+#analyzeBtn:hover::after{transform:translateX(6px)}
+#analyzeBtn:active{transform:translateY(0)}
+#analyzeBtn::before{content:"";position:absolute;top:0;left:-60%;width:38%;height:100%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.38),transparent);transform:skewX(-18deg);
+  animation:sheen 3.8s ease-in-out infinite}
+@keyframes sheen{0%,52%{left:-60%}82%,100%{left:150%}}
+[dir=rtl] #analyzeBtn::after{content:"←";margin-left:0;margin-right:10px}
+[dir=rtl] #analyzeBtn:hover::after{transform:translateX(-6px)}
+/* drag-to-drop state */
+.tool .dropmsg{display:none}
+.tool.dragover{transform:scale(1.012);
+  background:linear-gradient(var(--panel),var(--panel)) padding-box,linear-gradient(135deg,var(--purple),var(--purple)) border-box;
+  box-shadow:0 46px 116px -22px rgba(145,71,255,.9)}
+.tool.dragover .dropmsg{display:flex;position:absolute;inset:0;z-index:6;align-items:center;justify-content:center;
+  border-radius:22px;background:rgba(18,11,32,.86);backdrop-filter:blur(3px);border:2px dashed var(--purple)}
+.tool.dragover .dropmsg span{font-size:23px;font-weight:800;color:#fff}
+.trust{text-align:center;margin-top:14px}
+@media(max-width:600px){.hero{padding:36px 0 12px}.hero h1{font-size:37px}.tool{padding:22px 18px;margin-top:26px}
+  #url{height:56px;font-size:16px}#analyzeBtn{height:56px;font-size:17px}.pastebtn{font-size:19px;padding:0 15px}}
+@media(prefers-reduced-motion:reduce){#analyzeBtn::before{display:none}}
 """
 
 
@@ -1336,8 +1390,17 @@ function parseTwitchT(t){if(!t)return 0;var s=0;var m=String(t).match(/(?:(\d+)h
 function addRecent(name){try{var k='twdl_recent';var a=JSON.parse(localStorage.getItem(k)||'[]');a.unshift({name:name,t:Date.now()});localStorage.setItem(k,JSON.stringify(a.slice(0,8)));renderRecent()}catch(e){}}
 function renderRecent(){try{var a=JSON.parse(localStorage.getItem('twdl_recent')||'[]');var box=G('recentBox');if(!box||!a.length)return;box.classList.remove('hidden');G('recentList').innerHTML=a.map(function(x){return '<li><b>'+eh(x.name)+'</b><span>'+new Date(x.t).toLocaleDateString()+'</span></li>'}).join('')}catch(e){}}
 function initClient(){if(typeof backend==='function'&&backend())return;try{renderRecent()}catch(e){}var u=getQ('url')||getQ('u');if(u){var inp=$('url');if(inp){inp.value=u;if(getQ('go')||getQ('autostart'))setTimeout(function(){analyze()},150)}}}
+function setupDrop(){var z=$('tool');if(!z)return;
+  ['dragenter','dragover'].forEach(function(e){z.addEventListener(e,function(ev){ev.preventDefault();try{ev.dataTransfer.dropEffect='copy'}catch(_){}z.classList.add('dragover')})});
+  z.addEventListener('dragleave',function(ev){if(!z.contains(ev.relatedTarget))z.classList.remove('dragover')});
+  z.addEventListener('dragend',function(){z.classList.remove('dragover')});
+  z.addEventListener('drop',function(ev){ev.preventDefault();z.classList.remove('dragover');var txt='';
+    try{txt=ev.dataTransfer.getData('text/uri-list')||ev.dataTransfer.getData('text/plain')||ev.dataTransfer.getData('text')||''}catch(e){}
+    txt=String(txt).trim().split(/\s+/)[0];if(txt){var inp=$('url');if(inp){inp.value=txt;analyze()}}});
+}
 initClient();
 try{setupScrub()}catch(e){}
+try{setupDrop()}catch(e){}
 function toggleAdv(){var a=G('adv');if(a)a.classList.toggle('hidden');var o=G('optBtn');if(o)o.classList.toggle('open')}
 function flashOk(){var p=G('progressCard');if(p)p.classList.add('ok')}
 $('url').addEventListener('keydown',function(e){if(e.key==='Enter')analyze()});
