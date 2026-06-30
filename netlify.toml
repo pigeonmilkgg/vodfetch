@@ -1,0 +1,57 @@
+# Netlify-Konfiguration für die statische Twitch-Downloader-Seite.
+# Build:  TWITCHDL_BASE_URL="https://DEINE-DOMAIN" python build_static.py
+# Deploy: netlify deploy --prod   (publish-Ordner = dist)
+
+[build]
+  publish = "dist"
+  command = "pip install -r requirements.txt && TWITCHDL_BASE_URL=\"$URL\" python build_static.py"
+
+[build.environment]
+  PYTHON_VERSION = "3.11"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Sauberer Proxy-Pfad für den Browser-Downloader (CORS-Proxy nur für Twitch-Hosts)
+[[redirects]]
+  from = "/api/tw"
+  to = "/.netlify/functions/tw"
+  status = 200
+  force = true
+
+# Englisch lebt auf der Root — /en* sauber dorthin umleiten (SEO: keine Duplicate Content)
+[[redirects]]
+  from = "/en/*"
+  to = "/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/en"
+  to = "/"
+  status = 301
+  force = true
+
+# Markdown-Versionen korrekt als text/markdown ausliefern (für LLMs/AI-Crawler)
+[[headers]]
+  for = "/*.md"
+  [headers.values]
+    Content-Type = "text/markdown; charset=utf-8"
+    X-Robots-Tag = "all"
+
+[[headers]]
+  for = "/llms.txt"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
+
+[[headers]]
+  for = "/llms-full.txt"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

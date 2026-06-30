@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.twitchdl-cache/
+*.ts
+*.mp4
+*.zip
+dist/
+node_modules/
+.DS_Store
+.pytest_cache/
