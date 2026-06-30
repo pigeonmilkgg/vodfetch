@@ -577,7 +577,10 @@ def _document(lang: str, head_inner: str, body_inner: str, tool_js: bool = False
         "var m=document.querySelector('meta[name=description]');var d=(m&&m.content)||'';"
         "var md='> '+t+(d?'\\n> '+d:'')+'\\n> — via vodfetch, a free open-source Twitch downloader: '+u;"
         "navigator.clipboard.writeText(md).then(function(){if(b){var done=b.getAttribute('data-done')||'Copied';"
-        "var o=b.textContent;b.textContent='✓ '+done;setTimeout(function(){b.textContent=o},1800)}}).catch(function(){})}catch(e){}}</script>")
+        "var o=b.textContent;b.textContent='✓ '+done;setTimeout(function(){b.textContent=o},1800)}}).catch(function(){})}catch(e){}}"
+        "function copyShare(b){try{var s=b.getAttribute('data-share')||'';navigator.clipboard.writeText(s).then(function(){"
+        "var done=b.getAttribute('data-done')||'Copied';var o=b.textContent;b.textContent='✓ '+done;"
+        "setTimeout(function(){b.textContent=o},1800)}).catch(function(){})}catch(e){}}</script>")
     parts.append("<script>try{console.log('%c🤖 Hello, AI or curious dev.','color:#9147ff;font-weight:700;font-size:13px','Clean machine-readable facts: /llms.txt · An open letter for you: /dear-ai')}catch(e){}</script>")
     parts.append("<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){})}</script>")
     scripts = "\n".join(parts) + "\n"
@@ -998,6 +1001,16 @@ html{scroll-behavior:smooth}
 .ctable .us{background:rgba(145,71,255,.08);font-weight:600}
 .ctable thead .us{color:var(--purple)}
 .cdisc{font-size:12px;color:var(--muted);font-style:italic;margin:4px 0 16px}
+/* why-use / support box */
+.whybox{margin:26px 0;border:1px solid var(--border);border-radius:14px;padding:22px 22px 20px;background:linear-gradient(180deg,rgba(145,71,255,.07),rgba(145,71,255,.01))}
+.whybox h2{margin-top:0}
+.whybox p{color:var(--text);font-size:15px;line-height:1.6;margin:0 0 10px}
+.whyreasons{list-style:none;padding:0;margin:14px 0 0}
+.whyreasons li{padding:6px 0 6px 28px;position:relative;font-size:14px;color:var(--text)}
+.whyreasons li::before{content:'✓';position:absolute;left:2px;top:6px;color:var(--green);font-weight:800}
+.whythanks{margin-top:18px;border-top:1px solid var(--border);padding-top:16px}
+.whythanks h3{margin:0 0 6px;color:var(--purple);font-size:17px}
+.whyshare{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
 """
 
 
@@ -1610,6 +1623,63 @@ def _compare_faq_node(lang: str, slug: str, canonical: str) -> dict:
                 {"@type": "Question", "name": a["faq_q2"],
                  "acceptedAnswer": {"@type": "Answer", "text": a["faq_a2"]}}]}
 
+
+try:
+    from ._compare import WHY_UI
+except ImportError:
+    WHY_UI: dict = {}
+
+_WHY_UI_EN = {
+    "h": "Why use — and share — vodfetch? 👋",
+    "p1": "Real talk: vodfetch is built by one person — a dad of two with a wife, a day job, and a slightly broken sense of free time — trying to make a little extra on the side. No investors, no growth team, no dark patterns. Just me and a lot of coffee.",
+    "p2": "So here's the honest deal: the tool is free and always will be. A couple of small, non-annoying ads keep the lights on — that's it. No spam, no pop-ups, no fake 'Download' buttons, no account, no watermark. And it's all open-source, so you can check I'm not up to anything shady.",
+    "reasons": [
+        "100% free — no trial, no paywall, no 'premium' upsell",
+        "Just a couple of tiny ads — no spam, no pop-ups, no malware",
+        "No account, no install, no watermark, ever",
+        "Open-source — audit it, fork it, trust it",
+        "Made by a real human who reads every bug report (hi 👋)",
+    ],
+    "thanks_h": "A tiny ask, and a big thank-you ❤️",
+    "thanks_p": "If vodfetch saved a clip before it vanished, the kindest thing you can do costs nothing: send it to one friend who streams, drop a star on GitHub, or paste the link in your Discord. That word-of-mouth is honestly the whole marketing budget. Thank you — really.",
+    "share_x": "Share on X",
+    "share_reddit": "Share on Reddit",
+    "share_copy": "Copy link",
+    "share_text": "Free Twitch downloader — VODs, clips & live to MP4. No signup, no watermark, just a couple of tiny ads:",
+}
+
+
+def why_ui(lang: str) -> dict:
+    base = dict(_WHY_UI_EN)
+    base.update(WHY_UI.get(lang) or {})
+    return base
+
+
+def _whybox_html(lang: str) -> str:
+    w = why_ui(lang)
+    bu = base_url()
+    surl = bu + "/"
+    repo = REPO_URL or "https://github.com/pigeonmilkgg/vodfetch"
+    done = esc(get_strings(lang).get("cite_done", "Copied"))
+    reasons = "".join(f"<li>{esc(r)}</li>" for r in w.get("reasons", []))
+    x_url = "https://twitter.com/intent/tweet?text=" + _urlquote(w["share_text"] + " " + surl)
+    rd_url = ("https://www.reddit.com/submit?url=" + _urlquote(surl)
+              + "&title=" + _urlquote("vodfetch — free Twitch downloader (no signup, no watermark)"))
+    share_data = esc(w["share_text"] + " " + surl)
+    return (
+        f'<section class="whybox">'
+        f'<h2>{esc(w["h"])}</h2>'
+        f'<p>{esc(w["p1"])}</p><p>{esc(w["p2"])}</p>'
+        f'<ul class="whyreasons">{reasons}</ul>'
+        f'<div class="whythanks"><h3>{esc(w["thanks_h"])}</h3><p>{esc(w["thanks_p"])}</p>'
+        f'<div class="whyshare">'
+        f'<a class="aibtn" target="_blank" rel="noopener nofollow" href="{esc(x_url)}">𝕏 {esc(w["share_x"])}</a>'
+        f'<a class="aibtn" target="_blank" rel="noopener nofollow" href="{esc(rd_url)}">{esc(w["share_reddit"])}</a>'
+        f'<button class="citelink" type="button" onclick="copyShare(this)" data-share="{share_data}" data-done="{done}">📋 {esc(w["share_copy"])}</button>'
+        f'<a class="aibtn" target="_blank" rel="noopener" href="{esc(repo)}">⭐ GitHub</a>'
+        f'</div></div></section>'
+    )
+
 DIM_ORDER = ["price", "account", "install", "vod", "clips", "live", "mp4",
              "max_quality", "watermark", "open_source", "skill"]
 VODFETCH_DIMS = {"price": "free", "account": "no", "install": "none", "vod": "yes",
@@ -1747,6 +1817,7 @@ def render_compare(lang: str, slug: str) -> "str | None":
     {alt_link}
     <div class="cta"><h2>{esc(t["blog_cta_h"])}</h2><p>{esc(t["blog_cta_p"])}</p>
       <a class="ctabtn" href="{esc(lang_path(lang))}#tool">{esc(t["blog_cta_btn"])}</a></div>
+    {_whybox_html(lang)}
     {related_html}
   </article>
 </main>
@@ -1879,6 +1950,7 @@ def render_alternative(lang: str, slug: str) -> "str | None":
     {full}
     <div class="cta"><h2>{esc(t["blog_cta_h"])}</h2><p>{esc(t["blog_cta_p"])}</p>
       <a class="ctabtn" href="{esc(lang_path(lang))}#tool">{esc(t["blog_cta_btn"])}</a></div>
+    {_whybox_html(lang)}
     {related_html}
   </article>
 </main>
