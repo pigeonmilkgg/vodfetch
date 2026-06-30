@@ -53,6 +53,19 @@ def main() -> None:
                 write("glossary.html" if code == DEFAULT_LANG else f"{code}/glossary.html", w.render_glossary(code))
                 write("glossary.md" if code == DEFAULT_LANG else f"{code}/glossary.md", w.md_glossary(code))
 
+        # Vergleiche: Index + jede Vergleichsseite + Markdown (alle Sprachen)
+        if getattr(w, "COMPARE_META", None):
+            for code in LANGUAGES:
+                write("compare.html" if code == DEFAULT_LANG else f"{code}/compare.html", w.render_compare_index(code))
+                write("compare.md" if code == DEFAULT_LANG else f"{code}/compare.md", w.md_compare_index(code))
+                for slug in w.compare_slugs():
+                    h = w.render_compare(code, slug)
+                    if h:
+                        write(f"compare/{slug}.html" if code == DEFAULT_LANG else f"{code}/compare/{slug}.html", h)
+                    md = w.md_compare(code, slug)
+                    if md:
+                        write(f"compare/{slug}.md" if code == DEFAULT_LANG else f"{code}/compare/{slug}.md", md)
+
         # Blog-Index + Markdown
         for code in LANGUAGES:
             write("blog.html" if code == DEFAULT_LANG else f"{code}/blog.html",

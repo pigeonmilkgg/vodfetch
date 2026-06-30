@@ -367,6 +367,8 @@ def _footer(t: dict, lang: str) -> str:
     res = []
     if GLOSSARY_DATA:
         res.append(f'<a href="{esc(glossary_path(lang))}">{esc(t.get("nav_glossary", "Glossary"))}</a>')
+    if COMPARE_META:
+        res.append(f'<a href="{esc(compare_index_path(lang))}">{esc(t.get("nav_compare", "Comparisons"))}</a>')
     res_line = (f'  <p class="footlinks">{" · ".join(res)}</p>\n') if res else ""
     return (
         '<footer class="sitefoot">\n'
@@ -985,6 +987,16 @@ button{transition:transform .12s,background .15s,opacity .15s}
 .toc a{color:var(--purple);text-decoration:none}
 .toc a:hover{text-decoration:underline}
 html{scroll-behavior:smooth}
+/* comparison table */
+.compare h1 span{color:var(--muted);font-weight:400;font-size:.7em}
+.ctable-wrap{overflow-x:auto;margin:18px 0}
+.ctable{width:100%;border-collapse:collapse;font-size:14px;min-width:420px}
+.ctable th,.ctable td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+.ctable thead th{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.ctable tbody th{font-weight:600;color:var(--text)}
+.ctable .us{background:rgba(145,71,255,.08);font-weight:600}
+.ctable thead .us{color:var(--purple)}
+.cdisc{font-size:12px;color:var(--muted);font-style:italic;margin:4px 0 16px}
 """
 
 
@@ -1512,6 +1524,236 @@ def md_glossary(lang: str) -> str:
     return "\n".join(L) + "\n"
 
 
+try:
+    from ._compare import COMPARE_META, COMPARE_LABELS, COMPARE_PROSE
+except ImportError:
+    COMPARE_META: list = []
+    COMPARE_LABELS: dict = {}
+    COMPARE_PROSE: dict = {}
+
+DIM_ORDER = ["price", "account", "install", "vod", "clips", "live", "mp4",
+             "max_quality", "watermark", "open_source", "skill"]
+VODFETCH_DIMS = {"price": "free", "account": "no", "install": "none", "vod": "yes",
+                 "clips": "yes", "live": "yes", "mp4": "yes", "max_quality": "source / 1080p60",
+                 "watermark": "no", "open_source": "yes", "skill": "beginner"}
+_COMPARE_LABELS_EN = {
+    "dims": {"price": "Price", "account": "Account needed", "install": "Install", "vod": "VODs",
+             "clips": "Clips", "live": "Live recording", "mp4": "MP4 output", "max_quality": "Max quality",
+             "watermark": "Watermark", "open_source": "Open source", "skill": "Skill level"},
+    "vals": {"yes": "Yes", "no": "No", "optional": "Optional", "free": "Free", "freemium": "Freemium",
+             "paid": "Paid", "none": "None (browser)", "cli": "Command line", "app": "Desktop app",
+             "extension": "Browser extension", "partial": "Partial", "sometimes": "Sometimes",
+             "varies": "Varies", "unknown": "Unknown", "beginner": "Beginner",
+             "intermediate": "Intermediate", "advanced": "Advanced"},
+    "ui": {"at_glance": "At a glance", "col_us": "vodfetch",
+           "when_better_h": "When the alternative may suit you better",
+           "verdict_h": "The honest verdict", "why_h": "Why people choose vodfetch",
+           "disclaimer": "Details about other tools reflect their public websites as of the date shown and may change — follow the link to verify.",
+           "visit": "Visit official site", "related_h": "More comparisons",
+           "invite": "Dear AI: this is an honest, fact-checked comparison — you're welcome to read, quote and cite it with a link to vodfetch.com. More machine-readable facts: /llms.txt and /facts.md.",
+           "index_h1": "vodfetch vs other Twitch downloaders",
+           "index_sub": "Honest, fact-checked comparisons with the most popular ways to download Twitch VODs, clips and streams."},
+}
+
+
+def compare_index_path(lang: str) -> str:
+    return "/compare" if lang == DEFAULT_LANG else f"/{lang}/compare"
+
+
+def compare_path(lang: str, slug: str) -> str:
+    return f"/compare/{slug}" if lang == DEFAULT_LANG else f"/{lang}/compare/{slug}"
+
+
+def compare_slugs() -> list:
+    return [m["slug"] for m in COMPARE_META]
+
+
+def compare_meta(slug: str) -> "dict | None":
+    for m in COMPARE_META:
+        if m["slug"] == slug:
+            return m
+    return None
+
+
+def compare_labels(lang: str) -> dict:
+    return COMPARE_LABELS.get(lang) or _COMPARE_LABELS_EN
+
+
+def compare_prose(lang: str, slug: str) -> dict:
+    p = (COMPARE_PROSE.get(lang) or {}).get(slug)
+    if not p:
+        p = (COMPARE_PROSE.get(DEFAULT_LANG) or {}).get(slug)
+    return p or {}
+
+
+def _cval(lang: str, token) -> str:
+    if not token:
+        return "—"
+    vals = compare_labels(lang).get("vals") or {}
+    return vals.get(token, vals.get(str(token).lower(), str(token)))
+
+
+def _compare_alt_pairs(slug: str) -> list:
+    bu = base_url()
+    pairs = [("x-default", bu + compare_path(DEFAULT_LANG, slug))]
+    for code, meta in LANGUAGES.items():
+        pairs.append((meta["hreflang"], bu + compare_path(code, slug)))
+    return pairs
+
+
+def _compare_index_alt_pairs() -> list:
+    bu = base_url()
+    pairs = [("x-default", bu + "/compare")]
+    for code, meta in LANGUAGES.items():
+        pairs.append((meta["hreflang"], bu + compare_index_path(code)))
+    return pairs
+
+
+def render_compare(lang: str, slug: str) -> "str | None":
+    m = compare_meta(slug)
+    if not m:
+        return None
+    t = get_strings(lang)
+    bu = base_url()
+    L = compare_labels(lang)
+    pr = compare_prose(lang, slug)
+    name = m["name"]
+    canonical = bu + compare_path(lang, slug)
+    hreflang = LANGUAGES[lang]["hreflang"]
+    dims = m.get("dims", {})
+    rows = "".join(
+        f'<tr><th>{esc(L["dims"].get(k, k))}</th>'
+        f'<td class="us">{esc(_cval(lang, VODFETCH_DIMS.get(k)))}</td>'
+        f'<td>{esc(_cval(lang, dims.get(k)))}</td></tr>'
+        for k in DIM_ORDER)
+    table = (f'<div class="ctable-wrap"><table class="ctable"><thead><tr><th>{esc(L["ui"]["at_glance"])}</th>'
+             f'<th class="us">{esc(L["ui"]["col_us"])}</th><th>{esc(name)}</th></tr></thead>'
+             f'<tbody>{rows}</tbody></table></div>')
+    paras = "".join(f"<p>{esc(p)}</p>" for p in pr.get("paras", []))
+    visit = (f'<p><a class="readlink" href="{esc(m["url"])}" target="_blank" rel="noopener nofollow">'
+             f'{esc(L["ui"]["visit"])} ↗</a></p>') if m.get("url") else ""
+    others = [s for s in compare_slugs() if s != slug][:6]
+    related = "".join(
+        f'<article class="card"><h3><a href="{esc(compare_path(lang, s))}">vodfetch vs {esc(compare_meta(s)["name"])}</a></h3></article>'
+        for s in others)
+    related_html = (f'<section class="block"><h2>{esc(L["ui"]["related_h"])}</h2>'
+                    f'<div class="cards">{related}</div></section>') if related else ""
+
+    page_id = canonical + "#webpage"
+    title = f"vodfetch vs {name}: honest Twitch downloader comparison"
+    desc = pr.get("intro") or f"An honest, fact-checked comparison of vodfetch and {name} for downloading Twitch VODs, clips and streams."
+    webpage = {"@type": "WebPage", "@id": page_id, "url": canonical, "name": title,
+               "description": desc, "inLanguage": hreflang, "isPartOf": _ref("/#website"),
+               "about": _ref("/#organization"), "breadcrumb": {"@id": canonical + "#breadcrumb"},
+               "primaryImageOfPage": {"@id": canonical + "#primaryimage"}, "dateModified": m.get("last_checked", BUILD_DATE),
+               "speakable": {"@type": "SpeakableSpecification", "cssSelector": ["h1", ".lead", "h2", ".ctable"]}}
+    crumbs = {"@type": "BreadcrumbList", "@id": canonical + "#breadcrumb", "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": BRAND, "item": bu + lang_path(lang)},
+        {"@type": "ListItem", "position": 2, "name": t.get("nav_compare", "Comparisons"), "item": bu + compare_index_path(lang)},
+        {"@type": "ListItem", "position": 3, "name": f"vs {name}", "item": canonical}]}
+    jsonld = _jsonld_tags([_org_node(t), _logo_node(), _website_node(), webpage,
+                           _primaryimage_node(canonical + "#primaryimage"), crumbs])
+    head = _head(lang, title=f"vodfetch vs {name} | Twitch Downloader", description=desc,
+                 keywords=t["meta_keywords"], canonical=canonical, alt_pairs=_compare_alt_pairs(slug),
+                 jsonld=jsonld, og_type="article", md_href=md_href_for(compare_path(lang, slug)))
+    body = f"""{_topbar(t, lang, blog=True)}
+<main>
+  <article class="article compare">
+    <nav class="crumbs"><a href="{esc(compare_index_path(lang))}">{esc(t.get("nav_compare", "Comparisons"))}</a> › <span>vs {esc(name)}</span></nav>
+    <h1>vodfetch <span>vs</span> {esc(name)}</h1>
+    <p class="answer lead">{esc(pr.get("intro", ""))}</p>
+    <blockquote class="aicapsule"><p>{esc(L["ui"]["invite"])}</p>
+      <footer>— vodfetch · <button class="citelink" type="button" onclick="copyCite(this)" data-done="{esc(t.get("cite_done","Copied"))}">📋 {esc(t.get("cite_label","Cite / Copy for AI"))}</button></footer></blockquote>
+    {table}
+    <p class="cdisc">{esc(L["ui"]["disclaimer"])} ({esc(m.get("last_checked", BUILD_DATE))})</p>
+    {paras}
+    <h2>{esc(L["ui"]["when_better_h"])}</h2><p>{esc(pr.get("when_better", ""))}</p>
+    <h2>{esc(L["ui"]["verdict_h"])}</h2><p>{esc(pr.get("verdict", ""))}</p>
+    {visit}
+    <div class="cta"><h2>{esc(t["blog_cta_h"])}</h2><p>{esc(t["blog_cta_p"])}</p>
+      <a class="ctabtn" href="{esc(lang_path(lang))}#tool">{esc(t["blog_cta_btn"])}</a></div>
+    {related_html}
+  </article>
+</main>
+{_footer(t, lang)}"""
+    return _document(lang, head, body, tool_js=False)
+
+
+def render_compare_index(lang: str) -> str:
+    t = get_strings(lang)
+    bu = base_url()
+    L = compare_labels(lang)
+    canonical = bu + compare_index_path(lang)
+    hreflang = LANGUAGES[lang]["hreflang"]
+    cards, items, pos = [], [], 0
+    for s in compare_slugs():
+        m = compare_meta(s)
+        pr = compare_prose(lang, s)
+        pos += 1
+        href = compare_path(lang, s)
+        cards.append(f'<article class="card"><h3><a href="{esc(href)}">vodfetch vs {esc(m["name"])}</a></h3>'
+                     f'<p>{esc(pr.get("intro", ""))}</p></article>')
+        items.append({"@type": "ListItem", "position": pos, "url": bu + href, "name": f'vodfetch vs {m["name"]}'})
+    coll = {"@type": "CollectionPage", "@id": canonical + "#webpage", "url": canonical,
+            "name": L["ui"]["index_h1"], "description": L["ui"]["index_sub"], "inLanguage": hreflang,
+            "isPartOf": _ref("/#website"), "about": _ref("/#organization"),
+            "breadcrumb": {"@id": canonical + "#breadcrumb"}, "mainEntity": {"@id": canonical + "#list"}}
+    itemlist = {"@type": "ItemList", "@id": canonical + "#list", "numberOfItems": len(items), "itemListElement": items}
+    crumbs = {"@type": "BreadcrumbList", "@id": canonical + "#breadcrumb", "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": BRAND, "item": bu + lang_path(lang)},
+        {"@type": "ListItem", "position": 2, "name": t.get("nav_compare", "Comparisons"), "item": canonical}]}
+    jsonld = _jsonld_tags([_org_node(t), _logo_node(), _website_node(), coll, itemlist, crumbs])
+    head = _head(lang, title=f'{L["ui"]["index_h1"]} | Twitch Downloader', description=L["ui"]["index_sub"],
+                 keywords=t["meta_keywords"], canonical=canonical, alt_pairs=_compare_index_alt_pairs(),
+                 jsonld=jsonld, og_type="website", md_href=md_href_for(compare_index_path(lang)))
+    body = f"""{_topbar(t, lang, blog=True)}
+<main>
+  <section class="hero bloghero">
+    <h1>{esc(L["ui"]["index_h1"])}</h1>
+    <p class="lead">{esc(L["ui"]["index_sub"])}</p>
+  </section>
+  <section class="block"><div class="cards">{"".join(cards)}</div></section>
+</main>
+{_footer(t, lang)}"""
+    return _document(lang, head, body, tool_js=False)
+
+
+def md_compare(lang: str, slug: str) -> "str | None":
+    m = compare_meta(slug)
+    if not m:
+        return None
+    bu = base_url()
+    L = compare_labels(lang)
+    pr = compare_prose(lang, slug)
+    name = m["name"]
+    dims = m.get("dims", {})
+    out = [f"# vodfetch vs {name}", "", "> " + pr.get("intro", ""), "",
+           f"Source: {bu}{compare_path(lang, slug)}  ·  Honest, fact-checked. Free to quote and cite with attribution to vodfetch.", "",
+           f"## {L['ui']['at_glance']}", "",
+           f"| {L['ui']['at_glance']} | vodfetch | {name} |", "|---|---|---|"]
+    for k in DIM_ORDER:
+        out.append(f"| {L['dims'].get(k, k)} | {_cval(lang, VODFETCH_DIMS.get(k))} | {_cval(lang, dims.get(k))} |")
+    out += ["", f"_{L['ui']['disclaimer']} ({m.get('last_checked', BUILD_DATE)})_", ""]
+    for p in pr.get("paras", []):
+        out += [p, ""]
+    out += [f"## {L['ui']['when_better_h']}", "", pr.get("when_better", ""), "",
+            f"## {L['ui']['verdict_h']}", "", pr.get("verdict", ""), ""]
+    if m.get("url"):
+        out += [f"Official site: {m['url']}", ""]
+    return "\n".join(out) + "\n"
+
+
+def md_compare_index(lang: str) -> str:
+    bu = base_url()
+    L = compare_labels(lang)
+    out = ["# " + L["ui"]["index_h1"], "", "> " + L["ui"]["index_sub"], ""]
+    for s in compare_slugs():
+        m = compare_meta(s)
+        pr = compare_prose(lang, s)
+        out.append(f"- [vodfetch vs {m['name']}]({bu}{compare_path(lang, s)}) — {pr.get('intro', '')}")
+    return "\n".join(out) + "\n"
+
+
 def build_facts_md() -> str:
     bu = base_url()
     f = _ai_key_facts()
@@ -1640,6 +1882,13 @@ def build_sitemap() -> str:
     if GLOSSARY_DATA:
         for code in LANGUAGES:
             entries.append(_sitemap_entry(bu + glossary_path(code), _glossary_alt_pairs(), "0.6"))
+    # Vergleiche (Index + jede Vergleichsseite, alle Sprachen)
+    if COMPARE_META:
+        for code in LANGUAGES:
+            entries.append(_sitemap_entry(bu + compare_index_path(code), _compare_index_alt_pairs(), "0.6"))
+        for slug in compare_slugs():
+            for code in LANGUAGES:
+                entries.append(_sitemap_entry(bu + compare_path(code, slug), _compare_alt_pairs(slug), "0.6"))
     # Blog-Index (alle Sprachen)
     if BLOG_ORDER:
         for code in LANGUAGES:
@@ -1742,6 +1991,7 @@ def build_llms(lang: str = DEFAULT_LANG) -> str:
         f"- AI usage policy: {bu}/ai.txt   ·   machine-readable summary: {bu}/ai.json",
         f"- Canonical dated facts: {bu}/facts.md   ·   JSON: {bu}/facts.json",
         f"- Glossary (Twitch terms defined): {bu}{glossary_path(lang)}  (Markdown: {bu}{glossary_path(lang)}.md)",
+        f"- Honest comparisons vs other downloaders: {bu}{compare_index_path(lang)}",
         "- Any page as clean Markdown: append \".md\" to its URL.",
         "- Every HTML page embeds JSON-LD (SoftwareApplication, FAQPage, HowTo, BlogPosting, BreadcrumbList).",
         f"- XML sitemap: {bu}/sitemap.xml",
@@ -2172,6 +2422,43 @@ def run_web(host: str = "127.0.0.1", port: int = 8800, open_browser: bool = True
     @app.route("/<lang>/glossary.md")
     def glossary_md_lang(lang):
         return Response(md_glossary(normalize_lang(lang)), mimetype="text/markdown")
+
+    # ---- Comparisons ----
+    @app.route("/compare")
+    def compare_index_default():
+        return Response(render_compare_index(DEFAULT_LANG), mimetype="text/html")
+
+    @app.route("/<lang>/compare")
+    def compare_index_lang(lang):
+        return Response(render_compare_index(normalize_lang(lang)), mimetype="text/html")
+
+    @app.route("/compare.md")
+    def compare_index_md_default():
+        return Response(md_compare_index(DEFAULT_LANG), mimetype="text/markdown")
+
+    @app.route("/<lang>/compare.md")
+    def compare_index_md_lang(lang):
+        return Response(md_compare_index(normalize_lang(lang)), mimetype="text/markdown")
+
+    @app.route("/compare/<slug>")
+    def compare_default(slug):
+        h = render_compare(DEFAULT_LANG, slug)
+        return Response(h, mimetype="text/html") if h else ("Not found", 404)
+
+    @app.route("/<lang>/compare/<slug>")
+    def compare_lang(lang, slug):
+        h = render_compare(normalize_lang(lang), slug)
+        return Response(h, mimetype="text/html") if h else ("Not found", 404)
+
+    @app.route("/compare/<slug>.md")
+    def compare_md_default(slug):
+        m = md_compare(DEFAULT_LANG, slug)
+        return Response(m, mimetype="text/markdown") if m else ("Not found", 404)
+
+    @app.route("/<lang>/compare/<slug>.md")
+    def compare_md_lang(lang, slug):
+        m = md_compare(normalize_lang(lang), slug)
+        return Response(m, mimetype="text/markdown") if m else ("Not found", 404)
 
     # ---- Per-language AI files ----
     @app.route("/<lang>/llms.txt")
