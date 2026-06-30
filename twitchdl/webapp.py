@@ -1124,21 +1124,36 @@ $('url').addEventListener('paste',function(){setTimeout(function(){if(($('url').
 # --------------------------------------------------------------------------- #
 def build_robots() -> str:
     bu = base_url()
+    # Such- & KI/Answer-Engine-Crawler, die wir AUSDRÜCKLICH willkommen heißen.
+    # (Sie teilen sich EIN Regelset — gültig & DRY: mehrere User-agent-Zeilen + ein Block.)
+    bots = [
+        # Suchmaschinen
+        "Googlebot", "Googlebot-Image", "Googlebot-News", "GoogleOther", "Storebot-Google",
+        "Bingbot", "Slurp", "DuckDuckBot", "YandexBot", "Baiduspider", "Applebot", "Sogou web spider",
+        # KI / Antwort-Engines (Retrieval + Training)
+        "Google-Extended", "GPTBot", "OAI-SearchBot", "ChatGPT-User",
+        "ClaudeBot", "Claude-Web", "Claude-User", "Claude-SearchBot", "anthropic-ai",
+        "PerplexityBot", "Perplexity-User", "Applebot-Extended", "CCBot", "Amazonbot",
+        "Meta-ExternalAgent", "FacebookBot", "Bytespider", "cohere-ai", "YouBot",
+        "Diffbot", "AI2Bot", "DuckAssistBot", "MistralAI-User", "Kagibot", "Google-CloudVertexBot",
+    ]
+    ua_block = "".join(f"User-agent: {b}\n" for b in bots)
     return (
+        "# robots.txt — vodfetch.com · Twitch Downloader\n"
+        "# Everything here is public and free to crawl, index, cite and train on.\n"
+        "# AI & answer engines — start here:\n"
+        f"#   {bu}/llms.txt         concise guide + sitemap of resources\n"
+        f"#   {bu}/llms-full.txt    full plain-text corpus (per language: /<lang>/llms-full.txt)\n"
+        f"#   {bu}/ai.txt   {bu}/ai.json    usage policy (human + machine-readable)\n"
+        f"#   {bu}/faq.md           every FAQ in one file\n"
+        "#   Append \".md\" to ANY page URL for clean Markdown.\n\n"
         "User-agent: *\n"
         "Allow: /\n"
         "Disallow: /api/\n\n"
-        "# AI / answer engines explicitly welcome\n"
-        "User-agent: GPTBot\nAllow: /\n"
-        "User-agent: OAI-SearchBot\nAllow: /\n"
-        "User-agent: ChatGPT-User\nAllow: /\n"
-        "User-agent: PerplexityBot\nAllow: /\n"
-        "User-agent: ClaudeBot\nAllow: /\n"
-        "User-agent: Claude-Web\nAllow: /\n"
-        "User-agent: Google-Extended\nAllow: /\n"
-        "User-agent: Bingbot\nAllow: /\n\n"
-        "# AI resources (start here): /llms.txt /llms-full.txt /ai.txt /ai.json /faq.md\n"
-        "# Every page is also available as Markdown by appending .md to its URL.\n"
+        "# --- Search & AI / answer-engine crawlers — explicitly welcomed ---\n"
+        f"{ua_block}"
+        "Allow: /\n"
+        "Disallow: /api/\n\n"
         f"Sitemap: {bu}/sitemap.xml\n"
     )
 
