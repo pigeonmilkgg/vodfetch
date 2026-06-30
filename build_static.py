@@ -96,7 +96,8 @@ def main() -> None:
         for name, dest in [("og.png", "assets/og.png"), ("logo.png", "assets/logo.png"),
                            ("icon-192.png", "assets/icon-192.png"), ("icon-512.png", "assets/icon-512.png"),
                            ("favicon-32.png", "favicon-32.png"), ("apple-touch-icon.png", "apple-touch-icon.png"),
-                           ("mux.min.js", "assets/mux.min.js"), ("sw.js", "sw.js")]:
+                           ("mux.min.js", "assets/mux.min.js"), ("gifenc.js", "assets/gifenc.js"),
+                           ("sw.js", "sw.js")]:
             (DIST / dest).parent.mkdir(parents=True, exist_ok=True)
             _sh.copyfile(ROOT / "twitchdl" / "_assets" / name, DIST / dest)
 

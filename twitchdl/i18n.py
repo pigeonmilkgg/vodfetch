@@ -38,6 +38,12 @@ DEFAULT_LANG = "en"
 EN = {
     "locale": "en_US",
     "org_description": "Free, open-source tool to download Twitch VODs, clips and live streams as MP4.",
+    "tool_paste_title": "Paste from clipboard",
+    "tool_gif": "🎞 Make GIF",
+    "tool_gif_hint": "Trim to ≤ 15 s, then export a shareable GIF",
+    "askai_h": "Ask an AI about Twitch downloaders",
+    "askai_p": "Curious what the AI assistants recommend? Ask one — we're happy to be part of the answer.",
+    "askai_q": "What is the best free tool to download Twitch VODs and clips as MP4 without an account or watermark?",
     "meta_title": "Twitch Downloader — Download Twitch VODs, Clips & Streams to MP4",
     "meta_description": (
         "Free Twitch downloader to save Twitch VODs, clips and live streams as MP4 in "
@@ -218,6 +224,12 @@ EN = {
 DE = {
     "locale": "de_DE",
     "org_description": "Kostenloses Open-Source-Tool zum Herunterladen von Twitch-VODs, -Clips und -Live-Streams als MP4.",
+    "tool_paste_title": "Aus Zwischenablage einfügen",
+    "tool_gif": "🎞 GIF erstellen",
+    "tool_gif_hint": "Auf ≤ 15 s trimmen, dann als teilbares GIF exportieren",
+    "askai_h": "Frag eine KI nach Twitch-Downloadern",
+    "askai_p": "Neugierig, was die KI-Assistenten empfehlen? Frag eine — wir sind gern Teil der Antwort.",
+    "askai_q": "Was ist das beste kostenlose Tool, um Twitch-VODs und -Clips ohne Account und Wasserzeichen als MP4 herunterzuladen?",
     "meta_title": "Twitch Downloader — Twitch VODs, Clips & Streams als MP4 herunterladen",
     "meta_description": (
         "Kostenloser Twitch Downloader: Twitch VODs, Clips und Live-Streams als MP4 in "
@@ -435,3 +447,26 @@ def normalize_lang(raw: Optional[str]) -> str:
     if short in LANGUAGES:
         return short
     return DEFAULT_LANG
+
+
+# Weird-but-honest Lade-Mikrotexte (transkreativ je Sprache). Fallback: en.
+LOADING_MSGS = {
+    "en": ["Politely asking Twitch for the video…", "Reticulating splines…", "Untangling the playlist spaghetti…", "Teaching the segments to hold hands…", "Herding pixels into a single file…", "Applying the final strip of duct tape…", "Convincing your browser this is totally fine…", "Definitely not mining crypto. Pinky promise…", "Doing the thing. The thing is happening…", "Stitching frames while you look cool…", "Negotiating with the CDN…", "Almost there — warming up the download…"],
+    "de": ["Frage Twitch ganz höflich nach dem Video…", "Retikuliere Splines…", "Entwirre den Playlist-Spaghetti…", "Bringe den Segmenten Händchenhalten bei…", "Treibe die Pixel in eine Datei…", "Klebe das letzte Stück Panzerband…", "Überzeuge deinen Browser, dass das völlig okay ist…", "Definitiv kein Krypto-Mining. Ehrenwort…", "Mache das Ding. Das Ding passiert gerade…", "Nähe Frames zusammen, während du gut aussiehst…", "Verhandle mit dem CDN…", "Gleich fertig — wärme den Download auf…"],
+    "es": ["Pidiéndole el vídeo a Twitch, con educación…", "Reticulando splines…", "Desenredando los espaguetis de la playlist…", "Enseñando a los segmentos a darse la mano…", "Metiendo los píxeles en un solo archivo, a empujones…", "Pegando el último trozo de cinta americana…", "Convenciendo a tu navegador de que esto es de lo más normal…", "Definitivamente no estamos minando cripto. Te lo juro por Snoopy…", "Haciendo la cosa. La cosa ya está pasando…", "Cosiendo fotogramas mientras tú posas como un crack…", "Negociando con la CDN…", "Casi está — calentando motores para la descarga…"],
+    "pt-br": ["Pedindo o vídeo pra Twitch com licencinha…", "Reticulando splines…", "Desenrolando o miojo da playlist…", "Ensinando os pedacinhos a dar as mãos…", "Juntando os pixels num arquivo só…", "Passando a última fita isolante…", "Convencendo seu navegador que tá tudo certo…", "Juro que não é mineração de cripto. Pode crer…", "Fazendo a coisa. A coisa tá rolando…", "Costurando os frames enquanto você arrasa…", "Negociando com o CDN no precinho…", "Quase lá — esquentando o download…"],
+    "fr": ["On demande la vidéo à Twitch, très poliment…", "Réticulation des splines en cours…", "On démêle le plat de spaghettis de la playlist…", "On apprend aux segments à se tenir la main…", "On rassemble les pixels dans un seul fichier…", "Pose du dernier bout de scotch magique…", "On convainc ton navigateur que tout va bien…", "On ne mine pas de crypto. Parole d'honneur…", "On fait le truc. Le truc est en train de se faire…", "On coud les images pendant que tu fais le beau…", "Petite négociation avec le CDN…", "On y est presque — on chauffe le téléchargement…"],
+    "it": ["Chiediamo gentilmente il video a Twitch…", "Reticolazione delle spline in corso…", "Sbrogliamo gli spaghetti della playlist…", "Insegniamo ai segmenti a tenersi per mano…", "Raduniamo i pixel in un unico file…", "Ultimo giro di nastro adesivo…", "Convinciamo il browser che è tutto regolare…", "Giuriamo, niente mining di cripto. Promesso…", "Stiamo facendo la cosa. La cosa sta succedendo…", "Cuciamo i fotogrammi mentre tu fai il figo…", "Trattativa in corso con la CDN…", "Ci siamo quasi — scaldiamo il download…"],
+    "nl": ["Twitch netjes om het filmpje vragen…", "Splines aan het reticuleren…", "De afspeellijst-spaghetti ontklitten…", "De segmenten handjes laten vasthouden…", "Pixels één bestand in jagen…", "Het laatste stukje ducttape erop…", "Je browser overtuigen dat dit prima is…", "Echt geen crypto aan het minen. Erewoord…", "Het ding aan het doen. Het ding gebeurt nu…", "Frames aan elkaar naaien terwijl jij cool blijft…", "Aan het onderhandelen met de CDN…", "Bijna klaar — de download even opwarmen…"],
+    "pl": ["Grzecznie proszę Twitcha o filmik…", "Retikuluję splajny…", "Rozplątuję makaron z playlisty…", "Uczę segmenty trzymać się za rączki…", "Spędzam piksele do jednego pliku…", "Przyklejam ostatni kawałek taśmy klejącej…", "Przekonuję przeglądarkę, że to spoko…", "Na pewno nie kopię kryptowalut. Słowo harcerza…", "Robię to coś. To coś właśnie się dzieje…", "Zszywam klatki, a ty wyglądasz zajebiście…", "Negocjuję z CDN-em…", "Już prawie — rozgrzewam pobieranie…"],
+    "tr": ["Twitch'ten videoyu kibarca rica ediyoruz…", "Spline'lar retikülüze ediliyor…", "Oynatma listesi makarnası çözülüyor…", "Parçalara el ele tutuşmayı öğretiyoruz…", "Pikseller tek dosyaya güdülüyor…", "Son kez koli bandı çekiyoruz…", "Tarayıcına 'her şey yolunda' diye tatlı dille anlatıyoruz…", "Kesinlikle kripto kazmıyoruz. Cidden, söz…", "O şeyi yapıyoruz. Şey oluyor işte…", "Sen havalı dururken kareleri dikiyoruz…", "CDN ile pazarlık ediyoruz, biraz nazlanıyor…", "Az kaldı — indirmeyi ısıtıyoruz…"],
+    "ru": ["Вежливо выпрашиваем видео у Twitch…", "Ретикулируем сплайны…", "Распутываем спагетти из плейлиста…", "Учим сегменты держаться за ручки…", "Сгоняем пиксели в один файл…", "Приматываем последний кусочек скотча…", "Убеждаем браузер, что всё путём…", "Точно не майним крипту. Зуб даём…", "Делаем дело. Дело уже делается…", "Сшиваем кадры, пока ты весь такой красивый…", "Договариваемся с CDN по-хорошему…", "Почти готово — прогреваем загрузку…"],
+    "ja": ["Twitchに動画をペコリとお願い中…", "スプライン補間してます…", "プレイリストのスパゲッティをほぐし中…", "バラバラの断片に手をつながせ中…", "ピクセルを一つのファイルに集合させ中…", "最後にガムテで補強中…", "ブラウザに「全然平気だよ」と説得中…", "断じて仮想通貨は掘ってません。指切りげんまん…", "例のアレを実行中。アレ、進行中…", "君がキメ顔してる間にフレーム縫合中…", "CDNと交渉中…", "もうすぐ完了――ダウンロードを温め中…"],
+    "ko": ["트위치에 영상 좀 달라고 정중히 부탁하는 중…", "스플라인 보정 중… (심시티 감성)", "엉킨 플레이리스트 라면발 푸는 중…", "조각난 영상들 손 꼭 잡혀주는 중…", "흩어진 픽셀들 한 파일로 몰이하는 중…", "마지막으로 박스테이프 쫙 붙이는 중…", "브라우저한테 '이거 완전 정상이야' 설득하는 중…", "절대 코인 채굴 안 함. 새끼손가락 걸고 약속…", "그거 하는 중. 그게 지금 되고 있음…", "그대가 폼 잡는 동안 프레임 꿰매는 중…", "CDN이랑 흥정하는 중…", "거의 다 됐어요 — 다운로드 예열 중…"],
+    "zh-cn": ["正在彬彬有礼地向 Twitch 讨视频…", "正在重新拼接样条曲线…", "正在解开播放列表这碗意大利面…", "正在教视频片段手拉手…", "正在把像素一只只赶进文件里…", "正在贴上最后一截万能胶带…", "正在说服你的浏览器：放心，没事…", "绝对没在偷偷挖矿，拉钩上吊…", "正在搞事情，事情正在搞…", "正在缝合每一帧，你只管帅就好…", "正在和 CDN 服务器讨价还价…", "马上好——正在给下载热个身…"],
+    "ar": ["نطلب الفيديو من تويتش بكل أدب…", "نُعيد حساب المنحنيات يا لاعبين…", "نفك تشابك المعكرونة المسلسلة…", "نُعلّم المقاطع تمسك أيادي بعضها…", "نسوق البكسلات داخل ملف واحد…", "نلصق آخر شريط لاصق سحري…", "نُقنع متصفحك أنّ كل شيء تمام…", "أكيد لا نُنقّب عملات رقمية… وعد شرف…", "نسوي الحاجة… الحاجة قاعدة تصير…", "نخيط اللقطات وأنت واقف بأناقة…", "نتفاوض مع خوادم التوزيع (CDN)…", "كملنا تقريباً — نُسخّن التحميل…"],
+}
+
+
+def get_loading_msgs(lang: str) -> list:
+    return LOADING_MSGS.get(lang) or LOADING_MSGS["en"]
