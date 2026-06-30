@@ -39,6 +39,7 @@ INDEXNOW_KEY = os.environ.get("TWITCHDL_INDEXNOW_KEY", "8f3a2b7c9d1e4f5a6b8c0d2e
 # Optionale Webmaster-Verifizierung per Meta-Tag (Google URL-prefix / Bing). DNS-Verify braucht das nicht.
 GSC_VERIFY = os.environ.get("TWITCHDL_GSC_VERIFY", "")
 BING_VERIFY = os.environ.get("TWITCHDL_BING_VERIFY", "")
+REPO_URL = os.environ.get("TWITCHDL_REPO", "")
 
 _ASSET_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_assets")
 
@@ -307,9 +308,10 @@ def _footer(t: dict, lang: str) -> str:
         '<a href="/llms.txt">llms.txt</a> · <a href="/llms-full.txt">llms-full.txt</a> · '
         '<a href="/ai.txt">ai.txt</a> · <a href="/ai.json">ai.json</a> · <a href="/faq.md">faq.md</a>'
     )
+    gh = f' · <a href="{esc(REPO_URL)}" rel="noopener">★ Open-source on GitHub</a>' if REPO_URL else ""
     return (
         '<footer class="sitefoot">\n'
-        f'  <p>{esc(t["footer_made"])}</p>\n'
+        f'  <p>{esc(t["footer_made"])}{gh}</p>\n'
         f'  <p class="footlinks">{foot_langs}</p>\n'
         f'  <p class="footlinks ai">For AI &amp; LLMs: {ai_links}</p>\n'
         "</footer>"
