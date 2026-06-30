@@ -47,6 +47,12 @@ def main() -> None:
             write("about.html" if code == DEFAULT_LANG else f"{code}/about.html", w.render_about(code))
             write("about.md" if code == DEFAULT_LANG else f"{code}/about.md", w.md_about(code))
 
+        # Glossar + Markdown (alle Sprachen)
+        if getattr(w, "GLOSSARY_DATA", None):
+            for code in LANGUAGES:
+                write("glossary.html" if code == DEFAULT_LANG else f"{code}/glossary.html", w.render_glossary(code))
+                write("glossary.md" if code == DEFAULT_LANG else f"{code}/glossary.md", w.md_glossary(code))
+
         # Blog-Index + Markdown
         for code in LANGUAGES:
             write("blog.html" if code == DEFAULT_LANG else f"{code}/blog.html",

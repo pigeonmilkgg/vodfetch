@@ -93,6 +93,24 @@ except ImportError:
     BLOG_ORDER: list = []
 
 
+def glossary_path(lang: str) -> str:
+    return "/glossary" if lang == DEFAULT_LANG else f"/{lang}/glossary"
+
+
+try:
+    from ._glossary import GLOSSARY_DATA
+except ImportError:
+    GLOSSARY_DATA: dict = {}
+
+
+def glossary_data(lang: str) -> dict:
+    return GLOSSARY_DATA.get(lang) or GLOSSARY_DATA.get(DEFAULT_LANG) or {"glossary": [], "paa": []}
+
+
+def paa_items(lang: str) -> list:
+    return glossary_data(lang).get("paa", [])
+
+
 def blog_post_data(slug: str, lang: str) -> "dict | None":
     p = BLOG_POSTS.get(slug)
     if not p:
@@ -213,13 +231,14 @@ def build_jsonld(t: dict, lang: str, canonical: str) -> str:
         "speakable": {"@type": "SpeakableSpecification",
                       "cssSelector": ["h1", ".lead", ".faq summary h3", ".faq-a p"]},
     }
+    faq_all = list(t["faqs"]) + [{"q": p["q"], "a": p["a"]} for p in paa_items(lang)]
     faqpage = {
         "@type": "FAQPage", "@id": bu + "/#faq", "inLanguage": hreflang,
         "isPartOf": _ref("/#webpage"),
         "mainEntity": [
-            {"@type": "Question", "name": f["q"],
-             "acceptedAnswer": {"@type": "Answer", "text": f["a"]}}
-            for f in t["faqs"]
+            {"@type": "Question", "name": x["q"],
+             "acceptedAnswer": {"@type": "Answer", "text": x["a"]}}
+            for x in faq_all
         ],
     }
     howto = {
@@ -345,10 +364,15 @@ def _footer(t: dict, lang: str) -> str:
         '<a href="/ai.txt">ai.txt</a> · <a href="/ai.json">ai.json</a> · <a href="/faq.md">faq.md</a>'
     )
     gh = f' · <a href="{esc(REPO_URL)}" rel="noopener">★ Open-source on GitHub</a>' if REPO_URL else ""
+    res = []
+    if GLOSSARY_DATA:
+        res.append(f'<a href="{esc(glossary_path(lang))}">{esc(t.get("nav_glossary", "Glossary"))}</a>')
+    res_line = (f'  <p class="footlinks">{" · ".join(res)}</p>\n') if res else ""
     return (
         '<footer class="sitefoot">\n'
         f'  <p>{esc(t["footer_made"])}{gh}</p>\n'
         f'  <p class="footlinks">{foot_langs}</p>\n'
+        f'{res_line}'
         f'  <p class="footlinks ai">For AI &amp; LLMs: {ai_links}</p>\n'
         f'  <p class="footlinks"><button class="citelink" type="button" onclick="copyCite(this)" '
         f'data-done="{esc(t["cite_done"])}">📋 {esc(t["cite_label"])}</button></p>\n'
@@ -376,6 +400,15 @@ def build_body(t: dict, lang: str) -> str:
         f'<div class="faq-a"><p>{esc(f["a"])}</p></div></details>'
         for f in t["faqs"]
     )
+    paa_html = "".join(
+        f'<details class="faq"><summary><h3>{esc(p["q"])}</h3><span class="chev" aria-hidden="true">＋</span></summary>'
+        f'<div class="faq-a"><p>{esc(p["a"])}</p></div></details>'
+        for p in paa_items(lang)
+    )
+    paa_section = (
+        f'\n  <section id="paa" class="block">\n    <h2>{esc(t.get("paa_h2", "People also ask"))}</h2>\n'
+        f'    <div class="faqs">{paa_html}</div>\n  </section>\n'
+    ) if paa_html else ""
     guide_cards = "".join(
         f'<article class="card"><h3><a href="{esc(blog_post_path(lang, s))}">{esc(gd["title"])}</a></h3>'
         f'<p>{esc(gd["excerpt"])}</p></article>'
@@ -508,7 +541,7 @@ def build_body(t: dict, lang: str) -> str:
     <h2>{esc(t["faq_h2"])}</h2>
     <div class="faqs">{faqs}</div>
   </section>
-{guides_section}{askai_section}
+{paa_section}{guides_section}{askai_section}
   <p class="disclaimer">{esc(t["disclaimer"])}</p>
 </main>
 
@@ -1414,6 +1447,71 @@ def build_humans() -> str:
     )
 
 
+def _glossary_alt_pairs() -> list:
+    bu = base_url()
+    pairs = [("x-default", bu + "/glossary")]
+    for code, meta in LANGUAGES.items():
+        pairs.append((meta["hreflang"], bu + glossary_path(code)))
+    return pairs
+
+
+def render_glossary(lang: str) -> str:
+    t = get_strings(lang)
+    bu = base_url()
+    canonical = bu + glossary_path(lang)
+    hreflang = LANGUAGES[lang]["hreflang"]
+    data = glossary_data(lang)
+    terms = data.get("glossary", [])
+    items_html = "".join(
+        f'<div class="gterm" id="gt-{i + 1}"><dt>{esc(g["term"])}</dt><dd>{esc(g["def"])}</dd></div>'
+        for i, g in enumerate(terms))
+    page_id = canonical + "#webpage"
+    webpage = {"@type": ["WebPage", "CollectionPage"], "@id": page_id, "url": canonical,
+               "name": t["glossary_h1"], "description": t["glossary_sub"], "inLanguage": hreflang,
+               "isPartOf": _ref("/#website"), "about": _ref("/#organization"),
+               "breadcrumb": {"@id": canonical + "#breadcrumb"},
+               "speakable": {"@type": "SpeakableSpecification", "cssSelector": ["h1", ".lead", "dt", "dd"]}}
+    termset = {"@type": "DefinedTermSet", "@id": canonical + "#glossary", "name": t["glossary_h1"],
+               "inLanguage": hreflang,
+               "hasDefinedTerm": [{"@type": "DefinedTerm", "name": g["term"], "description": g["def"],
+                                   "inDefinedTermSet": {"@id": canonical + "#glossary"}} for g in terms]}
+    crumbs = {"@type": "BreadcrumbList", "@id": canonical + "#breadcrumb", "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": BRAND, "item": bu + lang_path(lang)},
+        {"@type": "ListItem", "position": 2, "name": t["nav_glossary"], "item": canonical}]}
+    jsonld = _jsonld_tags([_org_node(t), _logo_node(), _website_node(), webpage, termset, crumbs])
+    head = _head(lang, title=f'{t["glossary_h1"]} | Twitch Downloader', description=t["glossary_sub"],
+                 keywords=t["meta_keywords"], canonical=canonical, alt_pairs=_glossary_alt_pairs(),
+                 jsonld=jsonld, og_type="website", md_href=md_href_for(glossary_path(lang)))
+    body = f"""{_topbar(t, lang, blog=True)}
+<main>
+  <article class="article glossary">
+    <nav class="crumbs"><a href="{esc(lang_path(lang))}">{esc(BRAND)}</a> › <span>{esc(t["nav_glossary"])}</span></nav>
+    <h1>{esc(t["glossary_h1"])}</h1>
+    <p class="answer lead">{esc(t["glossary_sub"])}</p>
+    <dl class="glist">{items_html}</dl>
+    <div class="cta"><h2>{esc(t["blog_cta_h"])}</h2><p>{esc(t["blog_cta_p"])}</p>
+      <a class="ctabtn" href="{esc(lang_path(lang))}#tool">{esc(t["blog_cta_btn"])}</a></div>
+  </article>
+</main>
+{_footer(t, lang)}"""
+    return _document(lang, head, body, tool_js=False)
+
+
+def md_glossary(lang: str) -> str:
+    bu = base_url()
+    t = get_strings(lang)
+    data = glossary_data(lang)
+    L = ["# " + t["glossary_h1"], "", "> " + t["glossary_sub"], "",
+         f"Source: {bu}{glossary_path(lang)}  ·  Free to read, quote and cite with attribution to vodfetch.", ""]
+    for g in data.get("glossary", []):
+        L += [f"## {g['term']}", "", g["def"], ""]
+    if data.get("paa"):
+        L += ["## People also ask", ""]
+        for p in data["paa"]:
+            L += [f"### {p['q']}", "", p["a"], ""]
+    return "\n".join(L) + "\n"
+
+
 def build_facts_md() -> str:
     bu = base_url()
     f = _ai_key_facts()
@@ -1538,6 +1636,10 @@ def build_sitemap() -> str:
         entries.append(_sitemap_entry(bu + about_path(code), _about_alt_pairs(), "0.5"))
     # Dear AI (offener Brief an die Maschinen)
     entries.append(_sitemap_entry(bu + "/dear-ai", [("x-default", bu + "/dear-ai")], "0.5"))
+    # Glossar (alle Sprachen)
+    if GLOSSARY_DATA:
+        for code in LANGUAGES:
+            entries.append(_sitemap_entry(bu + glossary_path(code), _glossary_alt_pairs(), "0.6"))
     # Blog-Index (alle Sprachen)
     if BLOG_ORDER:
         for code in LANGUAGES:
@@ -1639,6 +1741,7 @@ def build_llms(lang: str = DEFAULT_LANG) -> str:
         f"- All FAQs (this language): {bu}{_aifile_path(lang, 'faq.md')}",
         f"- AI usage policy: {bu}/ai.txt   ·   machine-readable summary: {bu}/ai.json",
         f"- Canonical dated facts: {bu}/facts.md   ·   JSON: {bu}/facts.json",
+        f"- Glossary (Twitch terms defined): {bu}{glossary_path(lang)}  (Markdown: {bu}{glossary_path(lang)}.md)",
         "- Any page as clean Markdown: append \".md\" to its URL.",
         "- Every HTML page embeds JSON-LD (SoftwareApplication, FAQPage, HowTo, BlogPosting, BreadcrumbList).",
         f"- XML sitemap: {bu}/sitemap.xml",
@@ -2053,6 +2156,22 @@ def run_web(host: str = "127.0.0.1", port: int = 8800, open_browser: bool = True
     @app.route("/facts.json")
     def facts_json():
         return Response(build_facts_json(), mimetype="application/json")
+
+    @app.route("/glossary")
+    def glossary_default():
+        return Response(render_glossary(DEFAULT_LANG), mimetype="text/html")
+
+    @app.route("/<lang>/glossary")
+    def glossary_lang(lang):
+        return Response(render_glossary(normalize_lang(lang)), mimetype="text/html")
+
+    @app.route("/glossary.md")
+    def glossary_md_default():
+        return Response(md_glossary(DEFAULT_LANG), mimetype="text/markdown")
+
+    @app.route("/<lang>/glossary.md")
+    def glossary_md_lang(lang):
+        return Response(md_glossary(normalize_lang(lang)), mimetype="text/markdown")
 
     # ---- Per-language AI files ----
     @app.route("/<lang>/llms.txt")
