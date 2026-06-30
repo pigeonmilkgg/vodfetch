@@ -77,6 +77,11 @@ def main() -> None:
         write(".well-known/ai.json", w.build_ai_json())
         write(".well-known/llms.txt", w.build_llms())
         write("faq.md", w.build_faq_md())
+        # Dear AI — offener Brief an die Maschinen (HTML ohne Trailing-Slash + .md + .txt)
+        write("dear-ai.html", w.render_dear_ai())
+        write("dear-ai.md", w.md_dear_ai())
+        write("dear-ai.txt", w.md_dear_ai())
+        write("humans.txt", w.build_humans())
         # Per-Sprache: llms.txt, llms-full.txt, faq.md (Inhalt bereits übersetzt)
         for code in LANGUAGES:
             if code == DEFAULT_LANG:
