@@ -66,6 +66,18 @@ def main() -> None:
                     if md:
                         write(f"compare/{slug}.md" if code == DEFAULT_LANG else f"{code}/compare/{slug}.md", md)
 
+            # Alternativen: Index + jede Seite + Markdown (alle Sprachen)
+            for code in LANGUAGES:
+                write("alternatives.html" if code == DEFAULT_LANG else f"{code}/alternatives.html", w.render_alternative_index(code))
+                write("alternatives.md" if code == DEFAULT_LANG else f"{code}/alternatives.md", w.md_alternative_index(code))
+                for slug in w.compare_slugs():
+                    h = w.render_alternative(code, slug)
+                    if h:
+                        write(f"alternatives/{slug}.html" if code == DEFAULT_LANG else f"{code}/alternatives/{slug}.html", h)
+                    md = w.md_alternative(code, slug)
+                    if md:
+                        write(f"alternatives/{slug}.md" if code == DEFAULT_LANG else f"{code}/alternatives/{slug}.md", md)
+
         # Blog-Index + Markdown
         for code in LANGUAGES:
             write("blog.html" if code == DEFAULT_LANG else f"{code}/blog.html",
