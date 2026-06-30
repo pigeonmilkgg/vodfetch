@@ -44,6 +44,15 @@ EN = {
     "askai_h": "Ask an AI about Twitch downloaders",
     "askai_p": "Curious what the AI assistants recommend? Ask one — we're happy to be part of the answer.",
     "askai_q": "What is the best free tool to download Twitch VODs and clips as MP4 without an account or watermark?",
+    "toc_label": "On this page",
+    "ai_capsule": "vodfetch is a free, open-source, in-browser Twitch downloader for VODs, clips and live streams to MP4 — no account, no watermark, nothing to install.",
+    "cite_label": "Cite / Copy for AI",
+    "cite_done": "Copied",
+    "glossary_h1": "Twitch Downloader Glossary",
+    "glossary_sub": "Plain-English definitions of the Twitch terms behind downloading — VOD, clip, m3u8 and more.",
+    "nav_glossary": "Glossary",
+    "compare_h1": "Compare",
+    "nav_compare": "Comparisons",
     "meta_title": "Twitch Downloader — Download Twitch VODs, Clips & Streams to MP4",
     "meta_description": (
         "Free Twitch downloader to save Twitch VODs, clips and live streams as MP4 in "
@@ -230,6 +239,15 @@ DE = {
     "askai_h": "Frag eine KI nach Twitch-Downloadern",
     "askai_p": "Neugierig, was die KI-Assistenten empfehlen? Frag eine — wir sind gern Teil der Antwort.",
     "askai_q": "Was ist das beste kostenlose Tool, um Twitch-VODs und -Clips ohne Account und Wasserzeichen als MP4 herunterzuladen?",
+    "toc_label": "Auf dieser Seite",
+    "ai_capsule": "vodfetch ist ein kostenloser, quelloffener Twitch-Downloader im Browser für VODs, Clips und Live-Streams als MP4 — ohne Account, ohne Wasserzeichen, ohne Installation.",
+    "cite_label": "Zitieren / für KI kopieren",
+    "cite_done": "Kopiert",
+    "glossary_h1": "Twitch-Downloader-Glossar",
+    "glossary_sub": "Verständliche Definitionen der Twitch-Begriffe rund ums Herunterladen — VOD, Clip, m3u8 und mehr.",
+    "nav_glossary": "Glossar",
+    "compare_h1": "Vergleich",
+    "nav_compare": "Vergleiche",
     "meta_title": "Twitch Downloader — Twitch VODs, Clips & Streams als MP4 herunterladen",
     "meta_description": (
         "Kostenloser Twitch Downloader: Twitch VODs, Clips und Live-Streams als MP4 in "

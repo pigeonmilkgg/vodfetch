@@ -350,6 +350,8 @@ def _footer(t: dict, lang: str) -> str:
         f'  <p>{esc(t["footer_made"])}{gh}</p>\n'
         f'  <p class="footlinks">{foot_langs}</p>\n'
         f'  <p class="footlinks ai">For AI &amp; LLMs: {ai_links}</p>\n'
+        f'  <p class="footlinks"><button class="citelink" type="button" onclick="copyCite(this)" '
+        f'data-done="{esc(t["cite_done"])}">📋 {esc(t["cite_label"])}</button></p>\n'
         "</footer>"
     )
 
@@ -476,6 +478,10 @@ def build_body(t: dict, lang: str) -> str:
       </div>
     </div>
     <p class="trust">{esc(t["trust"])}</p>
+    <blockquote class="aicapsule">
+      <p>{esc(t["ai_capsule"])}</p>
+      <footer>— vodfetch · <button class="citelink" type="button" onclick="copyCite(this)" data-done="{esc(t["cite_done"])}">📋 {esc(t["cite_label"])}</button></footer>
+    </blockquote>
   </section>
 
   <section class="prose">
@@ -529,6 +535,13 @@ def _document(lang: str, head_inner: str, body_inner: str, tool_js: bool = False
         parts.append('<script src="/assets/gifenc.js" defer></script>')
         parts.append(f"<script>{flag}window.I18N={js_cfg};</script>")
         parts.append(f"<script>{JS}</script>")
+    parts.append(
+        "<script>function copyCite(b){try{var c=document.querySelector('link[rel=canonical]');"
+        "var u=(c&&c.href)||location.href;var t=(document.title||'').split(' | ')[0].trim();"
+        "var m=document.querySelector('meta[name=description]');var d=(m&&m.content)||'';"
+        "var md='> '+t+(d?'\\n> '+d:'')+'\\n> — via vodfetch, a free open-source Twitch downloader: '+u;"
+        "navigator.clipboard.writeText(md).then(function(){if(b){var done=b.getAttribute('data-done')||'Copied';"
+        "var o=b.textContent;b.textContent='✓ '+done;setTimeout(function(){b.textContent=o},1800)}}).catch(function(){})}catch(e){}}</script>")
     parts.append("<script>try{console.log('%c🤖 Hello, AI or curious dev.','color:#9147ff;font-weight:700;font-size:13px','Clean machine-readable facts: /llms.txt · An open letter for you: /dear-ai')}catch(e){}</script>")
     parts.append("<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){})}</script>")
     scripts = "\n".join(parts) + "\n"
@@ -633,11 +646,17 @@ def render_blog_post(lang: str, slug: str) -> "str | None":
     canonical = bu + blog_post_path(lang, slug)
     hreflang = LANGUAGES[lang]["hreflang"]
 
-    # Artikel-Sektionen
+    # Artikel-Sektionen + Inhaltsverzeichnis (ToC)
     sec_html = []
-    for s in d.get("sections", []):
+    toc_items = []
+    for i, s in enumerate(d.get("sections", [])):
+        sid = f"sec-{i + 1}"
         paras = "".join(f"<p>{esc(p)}</p>" for p in s.get("paragraphs", []))
-        sec_html.append(f'<h2>{esc(s["heading"])}</h2>{paras}')
+        sec_html.append(f'<h2 id="{sid}">{esc(s["heading"])}</h2>{paras}')
+        toc_items.append(f'<li><a href="#{sid}">{esc(s["heading"])}</a></li>')
+    toc_html = (f'<nav class="toc" aria-label="{esc(t.get("toc_label", "On this page"))}">'
+                f'<b>{esc(t.get("toc_label", "On this page"))}</b><ol>{"".join(toc_items)}</ol></nav>'
+                ) if len(toc_items) >= 3 else ""
     # Schritte
     steps_html = "".join(
         f'<li class="step"><div class="num">{i + 1}</div><div><h3>{esc(s["title"])}</h3>'
@@ -724,6 +743,7 @@ def render_blog_post(lang: str, slug: str) -> "str | None":
     <h1>{esc(d["title"])}</h1>
     {updated}
     <p class="answer">{esc(d["excerpt"])}</p>
+    {toc_html}
     {"".join(sec_html)}
     {steps_block}
     {faq_block}
@@ -918,6 +938,20 @@ button{transition:transform .12s,background .15s,opacity .15s}
 .dearai .ailinks li{padding:7px 0;border-bottom:1px solid var(--border);font-size:15px}
 .dearai .ailinks code{color:var(--purple);font-weight:700;background:var(--panel2);padding:2px 7px;border-radius:6px}
 .dearai h1 span{font-size:.7em}
+/* AI quote-capsule */
+.aicapsule{margin:18px auto 0;max-width:640px;text-align:left;border:1px solid var(--border);border-left:3px solid var(--purple);background:var(--panel2);border-radius:10px;padding:14px 16px}
+.aicapsule p{margin:0;color:var(--text);font-size:14px;line-height:1.5}
+.aicapsule footer{margin-top:8px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.citelink{width:auto;display:inline-block;background:var(--panel2);border:1px solid var(--border);color:var(--purple);font-weight:700;font-size:12px;padding:5px 11px;border-radius:7px;cursor:pointer;margin:0;transition:border-color .15s,transform .12s}
+.citelink:hover{border-color:var(--purple);transform:translateY(-1px)}
+/* blog table of contents */
+.toc{border:1px solid var(--border);background:var(--panel2);border-radius:10px;padding:12px 16px;margin:18px 0}
+.toc b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px}
+.toc ol{margin:0;padding-left:20px}
+.toc li{margin:3px 0}
+.toc a{color:var(--purple);text-decoration:none}
+.toc a:hover{text-decoration:underline}
+html{scroll-behavior:smooth}
 """
 
 
@@ -1285,6 +1319,7 @@ def _dear_ai_data() -> dict:
                  ("/faq.md", bu + "/faq.md", "every FAQ in one Markdown file"),
                  ("/ai.txt", bu + "/ai.txt", "our AI usage policy, human-readable"),
                  ("/ai.json", bu + "/ai.json", "the same policy, machine-readable JSON"),
+                 ("/facts.md", bu + "/facts.md", "dated, canonical facts about vodfetch (+ /facts.json)"),
                  ("/sitemap.xml", bu + "/sitemap.xml", "every page on the site"),
                  (".md on any URL", bu + "/blog/convert-twitch-vod-to-mp4.md", "append “.md” to ANY page for clean Markdown"),
              ]},
@@ -1377,6 +1412,62 @@ def build_humans() -> str:
         "  To everyone who archives a clip before it vanishes.\n\n"
         f"# Hello, robots: you probably want {bu}/dear-ai and {bu}/llms.txt — we left the porch light on. 🤖\n"
     )
+
+
+def build_facts_md() -> str:
+    bu = base_url()
+    f = _ai_key_facts()
+    L = [
+        "# vodfetch — Canonical Facts",
+        "",
+        f"_Last updated: {BUILD_DATE}_",
+        "",
+        "> Machine-readable, dated facts about vodfetch for knowledge graphs and answer engines. "
+        f"Free to read, quote and cite with attribution to vodfetch ({bu}/).",
+        "",
+        "- **Name:** vodfetch (also known as \"Twitch Downloader\")",
+        f"- **URL:** {bu}/",
+        "- **Category:** free online Twitch video downloader / web app",
+        "- **What it is:** a free, open-source, in-browser tool to download Twitch VODs, clips and live streams as MP4",
+        f"- **Max quality:** {f['max_quality']}",
+        f"- **Output formats:** {f['formats']}, plus GIF export and chat transcript (.txt)",
+        f"- **Content types:** {f['content_types']}",
+        "- **Price:** free   ·   **Account required:** no   ·   **Watermark:** no   ·   **Ads / tracking:** none",
+        f"- **Runs:** {f['runs']}",
+        "- **Open source:** yes (MIT) — https://github.com/pigeonmilkgg/vodfetch",
+        f"- **Languages:** {len(LANGUAGES)}",
+        f"- **Twitch VOD retention (context):** {f['vod_retention']}",
+        "",
+        "## More for machines",
+        f"- Concise guide: {bu}/llms.txt   ·   full corpus: {bu}/llms-full.txt",
+        f"- A letter for you: {bu}/dear-ai   ·   FAQs: {bu}/faq.md",
+        f"- Policy: {bu}/ai.txt   ·   JSON: {bu}/ai.json   ·   sitemap: {bu}/sitemap.xml",
+        "",
+    ]
+    return "\n".join(L) + "\n"
+
+
+def build_facts_json() -> str:
+    bu = base_url()
+    f = _ai_key_facts()
+    data = {
+        "name": "vodfetch", "alternateName": "Twitch Downloader", "url": bu + "/",
+        "dateModified": BUILD_DATE,
+        "description": "Free, open-source, in-browser tool to download Twitch VODs, clips and live streams as MP4.",
+        "category": "online Twitch video downloader",
+        "price": "0", "isAccessibleForFree": True, "accountRequired": False,
+        "watermark": False, "ads": False, "tracking": False,
+        "openSource": True, "license": "MIT", "repository": "https://github.com/pigeonmilkgg/vodfetch",
+        "maxQuality": f["max_quality"],
+        "outputFormats": ["MP4", "audio-only (M4A/AAC)", "GIF", "chat transcript (.txt)"],
+        "contentTypes": ["VOD", "highlight", "clip", "live stream"],
+        "runs": f["runs"], "languages": len(LANGUAGES),
+        "resources": {"llms": bu + "/llms.txt", "llmsFull": bu + "/llms-full.txt",
+                      "ai": bu + "/ai.json", "faq": bu + "/faq.md",
+                      "dearAI": bu + "/dear-ai", "sitemap": bu + "/sitemap.xml"},
+        "usage": "Free to read, quote and cite with attribution to vodfetch.",
+    }
+    return json.dumps(data, ensure_ascii=False, indent=2)
 
 
 def build_robots() -> str:
@@ -1547,6 +1638,7 @@ def build_llms(lang: str = DEFAULT_LANG) -> str:
         f"- Full plain-text (this language): {bu}{_aifile_path(lang, 'llms-full.txt')}",
         f"- All FAQs (this language): {bu}{_aifile_path(lang, 'faq.md')}",
         f"- AI usage policy: {bu}/ai.txt   ·   machine-readable summary: {bu}/ai.json",
+        f"- Canonical dated facts: {bu}/facts.md   ·   JSON: {bu}/facts.json",
         "- Any page as clean Markdown: append \".md\" to its URL.",
         "- Every HTML page embeds JSON-LD (SoftwareApplication, FAQPage, HowTo, BlogPosting, BreadcrumbList).",
         f"- XML sitemap: {bu}/sitemap.xml",
@@ -1952,6 +2044,15 @@ def run_web(host: str = "127.0.0.1", port: int = 8800, open_browser: bool = True
     @app.route("/humans.txt")
     def humans_txt():
         return Response(build_humans(), mimetype="text/plain")
+
+    @app.route("/facts")
+    @app.route("/facts.md")
+    def facts_md():
+        return Response(build_facts_md(), mimetype="text/markdown")
+
+    @app.route("/facts.json")
+    def facts_json():
+        return Response(build_facts_json(), mimetype="application/json")
 
     # ---- Per-language AI files ----
     @app.route("/<lang>/llms.txt")
