@@ -59,9 +59,8 @@ EN = {
     "nav_alternatives": "Alternatives",
     "meta_title": "Twitch Downloader — Download Twitch VODs, Clips & Streams to MP4",
     "meta_description": (
-        "Free Twitch downloader to save Twitch VODs, clips and live streams as MP4 in "
-        "full source quality (up to 1080p60). No account, no ads, no watermark — runs in "
-        "your browser. Fast, private and open-source."
+        "Free Twitch downloader — save VODs, clips and live streams as MP4 in source "
+        "quality up to 1080p60. No account, no watermark, right in your browser."
     ),
     "meta_keywords": (
         "twitch downloader, twitch video downloader, twitch vod downloader, twitch clip "
@@ -258,9 +257,8 @@ DE = {
     "nav_alternatives": "Alternativen",
     "meta_title": "Twitch Downloader — Twitch VODs, Clips & Streams als MP4 herunterladen",
     "meta_description": (
-        "Kostenloser Twitch Downloader: Twitch VODs, Clips und Live-Streams als MP4 in "
-        "voller Source-Qualität (bis 1080p60) herunterladen. Ohne Account, ohne Werbung, "
-        "ohne Wasserzeichen — direkt im Browser. Schnell, privat und Open-Source."
+        "Kostenloser Twitch Downloader — VODs, Clips & Live-Streams als MP4 in "
+        "Source-Qualität bis 1080p60. Ohne Konto, ohne Wasserzeichen, direkt im Browser."
     ),
     "meta_keywords": (
         "twitch downloader, twitch video downloader, twitch vod downloader, twitch clip "

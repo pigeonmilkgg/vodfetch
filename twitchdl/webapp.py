@@ -257,10 +257,22 @@ def build_jsonld(t: dict, lang: str, canonical: str) -> str:
 # --------------------------------------------------------------------------- #
 # <head> (generisch + Home-Wrapper)
 # --------------------------------------------------------------------------- #
+def _clip_desc(s: str, n: int = 155) -> str:
+    """Meta-Description auf ~155 Zeichen (Wortgrenze) kappen — Bing/Google-konform."""
+    s = " ".join((s or "").split())
+    if len(s) <= n:
+        return s
+    cut = s[:n]
+    if " " in cut:
+        cut = cut[:cut.rfind(" ")]
+    return cut.rstrip(" ,.;:—–-") + "…"
+
+
 def _head(lang: str, *, title: str, description: str, keywords: str, canonical: str,
           alt_pairs: list, jsonld: str, og_type: str = "website", md_href: str = "") -> str:
     bu = base_url()
     og_img = esc(bu + "/assets/og.png")
+    desc_meta = _clip_desc(description)
     alt = "\n".join(
         f'<link rel="alternate" hreflang="{esc(h)}" href="{esc(u)}">' for h, u in alt_pairs
     )
@@ -273,7 +285,7 @@ def _head(lang: str, *, title: str, description: str, keywords: str, canonical: 
     return f"""<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc(title)}</title>
-<meta name="description" content="{esc(description)}">
+<meta name="description" content="{esc(desc_meta)}">
 <meta name="keywords" content="{esc(keywords)}">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
 <meta name="theme-color" content="#9147ff">{verify}
@@ -282,7 +294,7 @@ def _head(lang: str, *, title: str, description: str, keywords: str, canonical: 
 <meta property="og:type" content="{esc(og_type)}">
 <meta property="og:site_name" content="Twitch Downloader">
 <meta property="og:title" content="{esc(title)}">
-<meta property="og:description" content="{esc(description)}">
+<meta property="og:description" content="{esc(desc_meta)}">
 <meta property="og:url" content="{esc(canonical)}">
 <meta property="og:locale" content="{esc(get_strings(lang)['locale'])}">
 <meta property="og:image" content="{og_img}">
@@ -292,7 +304,7 @@ def _head(lang: str, *, title: str, description: str, keywords: str, canonical: 
 <meta property="og:image:alt" content="Twitch Downloader — download Twitch VODs, clips and live streams to MP4">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{esc(title)}">
-<meta name="twitter:description" content="{esc(description)}">
+<meta name="twitter:description" content="{esc(desc_meta)}">
 <meta name="twitter:image" content="{og_img}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
