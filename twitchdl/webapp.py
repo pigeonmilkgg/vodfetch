@@ -376,7 +376,8 @@ def _footer(t: dict, lang: str) -> str:
         '<a href="/ai.txt">ai.txt</a> · <a href="/ai.json">ai.json</a> · <a href="/faq.md">faq.md</a>'
     )
     gh = f' · <a href="{esc(REPO_URL)}" rel="noopener">★ Open-source on GitHub</a>' if REPO_URL else ""
-    res = []
+    res = [f'<a href="{esc(blog_index_path(lang))}">{esc(t["nav_blog"])}</a>',
+           f'<a href="{esc(about_path(lang))}">{esc(t["nav_about"])}</a>']
     for _s in landing_slugs():
         _c = landing_copy(lang, _s)
         if _c:
@@ -387,11 +388,21 @@ def _footer(t: dict, lang: str) -> str:
         res.append(f'<a href="{esc(compare_index_path(lang))}">{esc(t.get("nav_compare", "Comparisons"))}</a>')
         res.append(f'<a href="{esc(alternatives_index_path(lang))}">{esc(t.get("nav_alternatives", "Alternatives"))}</a>')
     res_line = (f'  <p class="footlinks">{" · ".join(res)}</p>\n') if res else ""
+    # Alle Guides/Blogposts site-weit im Footer verlinken (Discoverability + internes Linking)
+    guides_foot = ""
+    if BLOG_ORDER:
+        posts = " · ".join(
+            f'<a href="{esc(blog_post_path(lang, s))}">{esc(bd["title"])}</a>'
+            for s in BLOG_ORDER for bd in [blog_post_data(s, lang)] if bd)
+        if posts:
+            guides_foot = (f'  <p class="footlinks foot-guides"><b><a href="{esc(blog_index_path(lang))}">'
+                           f'{esc(t["nav_blog"])}</a> ·</b> {posts}</p>\n')
     return (
         '<footer class="sitefoot">\n'
         f'  <p>{esc(t["footer_made"])}{gh}</p>\n'
         f'  <p class="footlinks">{foot_langs}</p>\n'
         f'{res_line}'
+        f'{guides_foot}'
         f'  <p class="footlinks ai">For AI &amp; LLMs: {ai_links}</p>\n'
         f'  <p class="footlinks"><button class="citelink" type="button" onclick="copyCite(this)" '
         f'data-done="{esc(t["cite_done"])}">📋 {esc(t["cite_label"])}</button></p>\n'
@@ -1083,6 +1094,8 @@ html{scroll-behavior:smooth}
 @media(max-width:520px){.minitool button{width:100%}}
 .toolcta{background:var(--panel2);border-left:3px solid var(--purple);border-radius:10px;padding:12px 16px;margin:18px 0;font-size:15px;color:var(--text)}
 .toolcta a{font-weight:700}
+.foot-guides{font-size:12px;line-height:1.9;max-width:820px;margin-left:auto;margin-right:auto}
+.foot-guides b a{color:var(--text)}
 /* ===== Premium hero / link-drop redesign ===== */
 .hero{position:relative;padding:56px 0 18px;overflow:visible}
 .hero::before{content:"";position:absolute;left:50%;top:-30px;width:min(1000px,128%);height:600px;transform:translateX(-50%);
