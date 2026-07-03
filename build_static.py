@@ -78,6 +78,17 @@ def main() -> None:
                     if md:
                         write(f"alternatives/{slug}.md" if code == DEFAULT_LANG else f"{code}/alternatives/{slug}.md", md)
 
+        # Landing pages (keyword-targeted, with the full tool) + Markdown (alle Sprachen)
+        if getattr(w, "LANDING_META", None):
+            for slug in w.landing_slugs():
+                for code in LANGUAGES:
+                    h = w.render_landing(code, slug)
+                    if h:
+                        write(f"{slug}.html" if code == DEFAULT_LANG else f"{code}/{slug}.html", h)
+                    md = w.md_landing(code, slug)
+                    if md:
+                        write(f"{slug}.md" if code == DEFAULT_LANG else f"{code}/{slug}.md", md)
+
         # Blog-Index + Markdown
         for code in LANGUAGES:
             write("blog.html" if code == DEFAULT_LANG else f"{code}/blog.html",

@@ -377,6 +377,10 @@ def _footer(t: dict, lang: str) -> str:
     )
     gh = f' · <a href="{esc(REPO_URL)}" rel="noopener">★ Open-source on GitHub</a>' if REPO_URL else ""
     res = []
+    for _s in landing_slugs():
+        _c = landing_copy(lang, _s)
+        if _c:
+            res.append(f'<a href="{esc(landing_path(lang, _s))}">{esc(_c["h1"])}</a>')
     if GLOSSARY_DATA:
         res.append(f'<a href="{esc(glossary_path(lang))}">{esc(t.get("nav_glossary", "Glossary"))}</a>')
     if COMPARE_META:
@@ -393,6 +397,78 @@ def _footer(t: dict, lang: str) -> str:
         f'data-done="{esc(t["cite_done"])}">📋 {esc(t["cite_label"])}</button></p>\n'
         "</footer>"
     )
+
+
+def _tool_card_html(t: dict, lang: str) -> str:
+    """Die vollständige, funktionierende Downloader-Karte (braucht tool_js=True auf der Seite)."""
+    return f"""    <div class="tool" id="tool">
+      <div class="dropmsg" aria-hidden="true"><span>⬇ {esc(t.get("tool_drop_msg", "Drop to analyze"))}</span></div>
+      <label for="url">{esc(t["tool_url_label"])}</label>
+      <div class="urlrow">
+        <input id="url" type="text" inputmode="url" autocomplete="off" spellcheck="false"
+               placeholder="{esc(t["tool_url_ph"])}">
+        <button class="pastebtn" id="pasteBtn" type="button" onclick="pasteUrl()"
+                title="{esc(t["tool_paste_title"])}" aria-label="{esc(t["tool_paste_title"])}">📋</button>
+      </div>
+      <p class="drophint">{esc(t.get("tool_drop_hint", "Paste a link, drop it here, or just type a channel name"))}</p>
+      <button class="primary" id="analyzeBtn" onclick="analyze()">{esc(t["tool_analyze"])}</button>
+      <div class="micro hidden" id="micro" aria-live="polite"></div>
+
+      <div class="result hidden" id="resultCard">
+        <div class="meta" id="meta"></div>
+        <div class="qrow">
+          <label class="sr-only" for="quality">{esc(t["tool_quality"])}</label>
+          <select id="quality" onchange="onQuality()"></select>
+          <span class="est" id="sizeEst"></span>
+        </div>
+        <button class="primary big" id="downloadBtn" onclick="startDownload()">{esc(t["tool_download"])}</button>
+        <button class="optlink" type="button" id="optBtn" onclick="toggleAdv()">{esc(t["tool_options"])}</button>
+        <div class="adv hidden" id="adv">
+          <div class="row">
+            <div class="field" id="fmtField"><label>{esc(t["tool_format"])}</label>
+              <div class="seg" id="fmtSeg">
+                <button type="button" data-v="mp4" class="on" onclick="setFmt('mp4')">MP4</button>
+                <button type="button" data-v="ts" onclick="setFmt('ts')">TS</button>
+              </div></div>
+            <div class="field"><label for="filename">{esc(t["tool_filename"])}</label>
+              <input id="filename" placeholder="{esc(t["tool_filename_ph"])}"></div>
+          </div>
+          <div class="trim hidden" id="trimBox">
+            <label class="trimtoggle"><input type="checkbox" id="trimOn" onchange="onTrimToggle()"> {esc(t["tool_trim"])}</label>
+            <div class="trimbody hidden" id="trimBody">
+              <p class="trimhint">{esc(t["tool_trim_hint"])}</p>
+              <div class="scrub" id="scrub">
+                <div class="scrubthumb hidden" id="scrubThumb"></div>
+                <div class="scrubtrack" id="scrubTrack">
+                  <div class="scrubsel" id="scrubSel"></div>
+                  <div class="scrubhandle" id="hStart" data-h="start" tabindex="0" role="slider" aria-label="Start"></div>
+                  <div class="scrubhandle" id="hEnd" data-h="end" tabindex="0" role="slider" aria-label="End"></div>
+                </div>
+              </div>
+              <div class="trow">
+                <label>{esc(t["tool_from"])}</label><input id="tStart" class="time" value="0:00" oninput="onTrimEdit()">
+                <label>{esc(t["tool_to"])}</label><input id="tEnd" class="time" value="0:00" oninput="onTrimEdit()">
+                <span class="seldur" id="selDur"></span>
+              </div>
+            </div>
+          </div>
+          <button class="ghost hidden" id="chatBtn" onclick="downloadChat()">{esc(t["tool_chat"])}</button>
+          <button class="ghost hidden" id="gifBtn" onclick="makeGif()" title="{esc(t["tool_gif_hint"])}">{esc(t["tool_gif"])}</button>
+        </div>
+        <button class="ghost hidden" id="stopBtn" onclick="stopJob()">{esc(t["tool_stop"])}</button>
+      </div>
+
+      <div class="progress hidden" id="progressCard">
+        <div class="bar"><i id="barFill"></i></div>
+        <div class="stats"><span id="statLeft"></span><span id="statRight"></span></div>
+        <div class="log" id="log"></div>
+      </div>
+
+      <div class="recent hidden" id="recentBox">
+        <h3>{esc(t["tool_recent"])}</h3>
+        <ul id="recentList"></ul>
+      </div>
+    </div>"""
 
 
 def _minitool_html(lang: str) -> str:
@@ -475,74 +551,7 @@ def build_body(t: dict, lang: str) -> str:
     <h1>{esc(t["hero_h1"])}<span>{esc(t["hero_h1_sub"])}</span></h1>
     <p class="lead">{esc(t["hero_sub"])}</p>
 
-    <div class="tool" id="tool">
-      <div class="dropmsg" aria-hidden="true"><span>⬇ {esc(t.get("tool_drop_msg", "Drop to analyze"))}</span></div>
-      <label for="url">{esc(t["tool_url_label"])}</label>
-      <div class="urlrow">
-        <input id="url" type="text" inputmode="url" autocomplete="off" spellcheck="false"
-               placeholder="{esc(t["tool_url_ph"])}">
-        <button class="pastebtn" id="pasteBtn" type="button" onclick="pasteUrl()"
-                title="{esc(t["tool_paste_title"])}" aria-label="{esc(t["tool_paste_title"])}">📋</button>
-      </div>
-      <p class="drophint">{esc(t.get("tool_drop_hint", "Paste a link, drop it here, or just type a channel name"))}</p>
-      <button class="primary" id="analyzeBtn" onclick="analyze()">{esc(t["tool_analyze"])}</button>
-      <div class="micro hidden" id="micro" aria-live="polite"></div>
-
-      <div class="result hidden" id="resultCard">
-        <div class="meta" id="meta"></div>
-        <div class="qrow">
-          <label class="sr-only" for="quality">{esc(t["tool_quality"])}</label>
-          <select id="quality" onchange="onQuality()"></select>
-          <span class="est" id="sizeEst"></span>
-        </div>
-        <button class="primary big" id="downloadBtn" onclick="startDownload()">{esc(t["tool_download"])}</button>
-        <button class="optlink" type="button" id="optBtn" onclick="toggleAdv()">{esc(t["tool_options"])}</button>
-        <div class="adv hidden" id="adv">
-          <div class="row">
-            <div class="field" id="fmtField"><label>{esc(t["tool_format"])}</label>
-              <div class="seg" id="fmtSeg">
-                <button type="button" data-v="mp4" class="on" onclick="setFmt('mp4')">MP4</button>
-                <button type="button" data-v="ts" onclick="setFmt('ts')">TS</button>
-              </div></div>
-            <div class="field"><label for="filename">{esc(t["tool_filename"])}</label>
-              <input id="filename" placeholder="{esc(t["tool_filename_ph"])}"></div>
-          </div>
-          <div class="trim hidden" id="trimBox">
-            <label class="trimtoggle"><input type="checkbox" id="trimOn" onchange="onTrimToggle()"> {esc(t["tool_trim"])}</label>
-            <div class="trimbody hidden" id="trimBody">
-              <p class="trimhint">{esc(t["tool_trim_hint"])}</p>
-              <div class="scrub" id="scrub">
-                <div class="scrubthumb hidden" id="scrubThumb"></div>
-                <div class="scrubtrack" id="scrubTrack">
-                  <div class="scrubsel" id="scrubSel"></div>
-                  <div class="scrubhandle" id="hStart" data-h="start" tabindex="0" role="slider" aria-label="Start"></div>
-                  <div class="scrubhandle" id="hEnd" data-h="end" tabindex="0" role="slider" aria-label="End"></div>
-                </div>
-              </div>
-              <div class="trow">
-                <label>{esc(t["tool_from"])}</label><input id="tStart" class="time" value="0:00" oninput="onTrimEdit()">
-                <label>{esc(t["tool_to"])}</label><input id="tEnd" class="time" value="0:00" oninput="onTrimEdit()">
-                <span class="seldur" id="selDur"></span>
-              </div>
-            </div>
-          </div>
-          <button class="ghost hidden" id="chatBtn" onclick="downloadChat()">{esc(t["tool_chat"])}</button>
-          <button class="ghost hidden" id="gifBtn" onclick="makeGif()" title="{esc(t["tool_gif_hint"])}">{esc(t["tool_gif"])}</button>
-        </div>
-        <button class="ghost hidden" id="stopBtn" onclick="stopJob()">{esc(t["tool_stop"])}</button>
-      </div>
-
-      <div class="progress hidden" id="progressCard">
-        <div class="bar"><i id="barFill"></i></div>
-        <div class="stats"><span id="statLeft"></span><span id="statRight"></span></div>
-        <div class="log" id="log"></div>
-      </div>
-
-      <div class="recent hidden" id="recentBox">
-        <h3>{esc(t["tool_recent"])}</h3>
-        <ul id="recentList"></ul>
-      </div>
-    </div>
+{_tool_card_html(t, lang)}
     <p class="trust">{esc(t["trust"])}</p>
     <blockquote class="aicapsule">
       <p>{esc(t["ai_capsule"])}</p>
@@ -2216,6 +2225,129 @@ def build_facts_json() -> str:
     return json.dumps(data, ensure_ascii=False, indent=2)
 
 
+try:
+    from ._landing import LANDING_META, LANDING_COPY
+except ImportError:
+    LANDING_META: dict = {}
+    LANDING_COPY: dict = {}
+
+
+def landing_slugs() -> list:
+    return list(LANDING_META.keys())
+
+
+def landing_path(lang: str, slug: str) -> str:
+    return f"/{slug}" if lang == DEFAULT_LANG else f"/{lang}/{slug}"
+
+
+def landing_copy(lang: str, slug: str) -> "dict | None":
+    c = (LANDING_COPY.get(lang) or {}).get(slug)
+    if not c:
+        c = (LANDING_COPY.get(DEFAULT_LANG) or {}).get(slug)
+    return c
+
+
+def _landing_alt_pairs(slug: str) -> list:
+    bu = base_url()
+    pairs = [("x-default", bu + landing_path(DEFAULT_LANG, slug))]
+    for code, meta in LANGUAGES.items():
+        pairs.append((meta["hreflang"], bu + landing_path(code, slug)))
+    return pairs
+
+
+def render_landing(lang: str, slug: str) -> "str | None":
+    if slug not in LANDING_META:
+        return None
+    c = landing_copy(lang, slug)
+    if not c:
+        return None
+    t = get_strings(lang)
+    bu = base_url()
+    canonical = bu + landing_path(lang, slug)
+    hreflang = LANGUAGES[lang]["hreflang"]
+    feature_cards = "".join(
+        f'<article class="feature"><div class="ficon" aria-hidden="true">{_FEATURE_ICONS[i % len(_FEATURE_ICONS)]}</div>'
+        f'<h3>{esc(f["title"])}</h3><p>{esc(f["desc"])}</p></article>'
+        for i, f in enumerate(t["features"]))
+    how_steps = "".join(
+        f'<li class="step"><div class="num">{i + 1}</div><div><h3>{esc(s["title"])}</h3>'
+        f'<p>{esc(s["desc"])}</p></div></li>' for i, s in enumerate(t["how_steps"]))
+    faq_html = "".join(
+        f'<details class="faq"><summary><h3>{esc(f["q"])}</h3><span class="chev" aria-hidden="true">＋</span></summary>'
+        f'<div class="faq-a"><p>{esc(f["a"])}</p></div></details>' for f in c["faqs"])
+    # internal links (other landing + comparisons + guides)
+    links = []
+    for s in landing_slugs():
+        if s != slug:
+            oc = landing_copy(lang, s)
+            if oc:
+                links.append(f'<article class="card"><h3><a href="{esc(landing_path(lang, s))}">{esc(oc["h1"])}</a></h3><p>{esc(oc["sub"])}</p></article>')
+    if COMPARE_META:
+        links.append(f'<article class="card"><h3><a href="{esc(compare_index_path(lang))}">{esc(compare_labels(lang)["ui"]["index_h1"])}</a></h3></article>')
+    links_html = (f'<section class="block"><h2>{esc(t["blog_h1"])}</h2><div class="cards">{"".join(links)}</div>'
+                  f'<p style="margin-top:16px"><a class="readlink" href="{esc(blog_index_path(lang))}">{esc(t["blog_read"])}</a></p></section>') if links else ""
+
+    page_id = canonical + "#webpage"
+    app = {"@type": ["SoftwareApplication", "WebApplication"], "@id": bu + "/#app", "name": t["brand"],
+           "url": bu + "/", "applicationCategory": "MultimediaApplication", "operatingSystem": "All",
+           "inLanguage": hreflang, "description": c["meta"], "isAccessibleForFree": True,
+           "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD", "category": "free"},
+           "featureList": [f["title"] for f in t["features"]],
+           "publisher": _ref("/#organization"), "isPartOf": _ref("/#website")}
+    webpage = {"@type": "WebPage", "@id": page_id, "url": canonical, "name": c["title"],
+               "description": c["meta"], "inLanguage": hreflang, "dateModified": BUILD_DATE,
+               "isPartOf": _ref("/#website"), "about": {"@id": bu + "/#app"}, "mainEntity": {"@id": bu + "/#app"},
+               "primaryImageOfPage": {"@id": canonical + "#primaryimage"}, "breadcrumb": {"@id": canonical + "#breadcrumb"},
+               "speakable": {"@type": "SpeakableSpecification", "cssSelector": ["h1", ".lead", "h2"]}}
+    howto = {"@type": "HowTo", "@id": canonical + "#howto", "name": t["how_h2"], "inLanguage": hreflang,
+             "isPartOf": {"@id": page_id},
+             "step": [{"@type": "HowToStep", "position": i + 1, "name": s["title"], "text": s["desc"]}
+                      for i, s in enumerate(t["how_steps"])]}
+    faqpage = {"@type": "FAQPage", "@id": canonical + "#faq", "inLanguage": hreflang, "isPartOf": {"@id": page_id},
+               "mainEntity": [{"@type": "Question", "name": f["q"],
+                               "acceptedAnswer": {"@type": "Answer", "text": f["a"]}} for f in c["faqs"]]}
+    crumbs = {"@type": "BreadcrumbList", "@id": canonical + "#breadcrumb", "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": BRAND, "item": bu + lang_path(lang)},
+        {"@type": "ListItem", "position": 2, "name": c["h1"], "item": canonical}]}
+    jsonld = _jsonld_tags([_org_node(t), _logo_node(), _website_node(), app, webpage,
+                           _primaryimage_node(canonical + "#primaryimage"), howto, faqpage, crumbs])
+    head = _head(lang, title=c["title"], description=c["meta"], keywords=t["meta_keywords"],
+                 canonical=canonical, alt_pairs=_landing_alt_pairs(slug), jsonld=jsonld,
+                 og_type="website", md_href=md_href_for(landing_path(lang, slug)))
+    body = f"""{_topbar(t, lang)}
+<main>
+  <section class="hero">
+    <p class="badge">{esc(t["hero_badge"])}</p>
+    <h1>{esc(c["h1"])}<span>{esc(c["sub"])}</span></h1>
+    <p class="lead">{esc(c["lead"])}</p>
+{_tool_card_html(t, lang)}
+    <p class="trust">{esc(t["trust"])}</p>
+  </section>
+  <section class="prose"><p>{esc(c["intro"])}</p></section>
+  <section id="features" class="block"><h2>{esc(t["features_h2"])}</h2><div class="features">{feature_cards}</div></section>
+  <section id="how" class="block"><h2>{esc(t["how_h2"])}</h2><ol class="steps">{how_steps}</ol></section>
+  <section id="faq" class="block"><h2>{esc(t["faq_h2"])}</h2><div class="faqs">{faq_html}</div></section>
+  {_whybox_html(lang)}
+{links_html}
+  <p class="disclaimer">{esc(t["disclaimer"])}</p>
+</main>
+{_footer(t, lang)}"""
+    return _document(lang, head, body, tool_js=True)
+
+
+def md_landing(lang: str, slug: str) -> "str | None":
+    c = landing_copy(lang, slug)
+    if not c:
+        return None
+    bu = base_url()
+    L = ["# " + c["h1"], "", "> " + c["sub"], "",
+         f"Source: {bu}{landing_path(lang, slug)}  ·  Free to quote and cite with attribution to vodfetch.", "",
+         c["lead"], "", c["intro"], "", "## Frequently asked questions", ""]
+    for f in c["faqs"]:
+        L += [f"### {f['q']}", "", f["a"], ""]
+    return "\n".join(L) + "\n"
+
+
 GROUNDING_STD = "https://groundingpage.com/spec/"
 GROUNDING_VER = "1.6"
 
@@ -2465,6 +2597,11 @@ def build_sitemap() -> str:
     entries.append(_sitemap_entry(bu + "/dear-ai", [("x-default", bu + "/dear-ai")], "0.5"))
     # Grounding Page (kanonische Entity-Referenz)
     entries.append(_sitemap_entry(bu + "/grounding", [("x-default", bu + "/grounding")], "0.6"))
+    # Landing pages (keyword-targeted conversion pages)
+    if LANDING_META:
+        for slug in landing_slugs():
+            for code in LANGUAGES:
+                entries.append(_sitemap_entry(bu + landing_path(code, slug), _landing_alt_pairs(slug), "0.8"))
     # Glossar (alle Sprachen)
     if GLOSSARY_DATA:
         for code in LANGUAGES:
@@ -3089,6 +3226,17 @@ def run_web(host: str = "127.0.0.1", port: int = 8800, open_browser: bool = True
     @app.route("/grounding.json")
     def grounding_json():
         return Response(build_grounding_json(), mimetype="application/json")
+
+    # ---- Landing pages (explicit routes per slug — no catch-all) ----
+    for _slug in landing_slugs():
+        app.add_url_rule(f"/{_slug}", f"land_{_slug}",
+                         (lambda s=_slug: Response(render_landing(DEFAULT_LANG, s), mimetype="text/html")))
+        app.add_url_rule(f"/{_slug}.md", f"landmd_{_slug}",
+                         (lambda s=_slug: Response(md_landing(DEFAULT_LANG, s) or "", mimetype="text/markdown")))
+        app.add_url_rule(f"/<lang>/{_slug}", f"landl_{_slug}",
+                         (lambda lang, s=_slug: Response(render_landing(normalize_lang(lang), s), mimetype="text/html")))
+        app.add_url_rule(f"/<lang>/{_slug}.md", f"landlmd_{_slug}",
+                         (lambda lang, s=_slug: Response(md_landing(normalize_lang(lang), s) or "", mimetype="text/markdown")))
 
     @app.route("/glossary")
     def glossary_default():
