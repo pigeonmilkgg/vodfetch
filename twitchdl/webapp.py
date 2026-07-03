@@ -616,8 +616,7 @@ def _document(lang: str, head_inner: str, body_inner: str, tool_js: bool = False
             "gifHint": t.get("tool_gif_hint", ""),
         }, ensure_ascii=False).replace("<", "\\u003c")
         flag = "window.TWITCHDL_HOSTED=false;" if STATIC_MODE else ""
-        parts.append('<script src="/assets/mux.min.js" defer></script>')
-        parts.append('<script src="/assets/gifenc.js" defer></script>')
+        # mux.js + gifenc werden on-demand geladen (siehe ensureMux/ensureGifenc) — spart ~137 KB Initial-Load
         parts.append(f"<script>{flag}window.I18N={js_cfg};</script>")
         parts.append(f"<script>{JS}</script>")
     parts.append(
@@ -1331,6 +1330,9 @@ async function fetchBin(u){var CH=4000000,off=0,parts=[];
     if(ab.byteLength===0||ab.byteLength<CH)break;   /* short read -> last chunk */
   }
   var len=0;parts.forEach(function(p){len+=p.byteLength});var all=new Uint8Array(len),o=0;parts.forEach(function(p){all.set(p,o);o+=p.byteLength});return all}
+function loadScript(src){return new Promise(function(res,rej){if(document.querySelector('script[data-lz="'+src+'"]')){res();return}var s=document.createElement('script');s.src=src;s.setAttribute('data-lz',src);s.onload=function(){res()};s.onerror=function(){rej(new Error('load '+src))};document.head.appendChild(s)})}
+async function ensureMux(){if(!window.muxjs){try{await loadScript('/assets/mux.min.js')}catch(e){}}return !!window.muxjs}
+async function ensureGifenc(){if(!(window.gifenc&&window.gifenc.GIFEncoder)){try{await loadScript('/assets/gifenc.js')}catch(e){}}return !!(window.gifenc&&window.gifenc.GIFEncoder)}
 function makeMux(){var tm=new muxjs.mp4.Transmuxer({remux:true,keepOriginalTimestamps:true});var out=[];
   tm.on('data',function(seg){out.push(seg.initSegment);out.push(seg.data)});
   return{push:function(b){tm.push(b)},finish:function(){tm.flush();return out}}}
@@ -1348,6 +1350,7 @@ async function dlSegments(ref,q,name){
   var media=clientMedia[idx]||await loadMedia(idx);
   var isLive=(ref.kind==='channel')&&!media.ended;
   var audio=q.audio||/audio/i.test(q.label||'');
+  if(!isLive&&curFmt==='mp4'){await ensureMux()}   /* lazy-load the MP4 transmuxer only when needed */
   var useMux=(!isLive)&&(curFmt==='mp4')&&!!window.muxjs;   /* live always streams as TS */
   var ext=audio?(useMux?'.m4a':'.aac'):(useMux?'.mp4':'.ts');
   var list=null;
@@ -1439,7 +1442,7 @@ function showThumb(time,clientX){var el=G('scrubThumb');if(!el)return;if(!storyb
 function hideThumb(){var el=G('scrubThumb');if(el)el.classList.add('hidden')}
 /* ---- GIF export (gifenc) ---- */
 function seekTo(v,t){return new Promise(function(res){var done=false;function on(){if(done)return;done=true;v.removeEventListener('seeked',on);res()}v.addEventListener('seeked',on);try{v.currentTime=Math.max(0,Math.min(t,(v.duration||t)))}catch(e){on()}setTimeout(on,1500)})}
-async function buildSelectionMp4(){var idx=parseInt(($('quality')||{}).value||'0',10)||0;var media=clientMedia[idx]||await loadMedia(idx);var rg=selRange();var segs=media.segs.filter(function(s){return (s.start+s.dur)>rg[0]&&s.start<rg[1]});if(!segs.length)throw new Error('No segments in range');if(!window.muxjs)throw new Error('MP4 converter unavailable');var mux=makeMux();for(var i=0;i<segs.length;i+=6){if(clientStop)break;var bufs=await Promise.all(segs.slice(i,i+6).map(function(s){return fetchBin(s.url)}));for(var j=0;j<bufs.length;j++)mux.push(bufs[j]);setBar(Math.min(55,i/segs.length*55))}var out=mux.finish().filter(Boolean);return{blob:new Blob(out,{type:'video/mp4'}),startOffset:Math.max(0,rg[0]-segs[0].start),dur:rg[1]-rg[0]}}
+async function buildSelectionMp4(){var idx=parseInt(($('quality')||{}).value||'0',10)||0;var media=clientMedia[idx]||await loadMedia(idx);var rg=selRange();var segs=media.segs.filter(function(s){return (s.start+s.dur)>rg[0]&&s.start<rg[1]});if(!segs.length)throw new Error('No segments in range');await ensureMux();if(!window.muxjs)throw new Error('MP4 converter unavailable');var mux=makeMux();for(var i=0;i<segs.length;i+=6){if(clientStop)break;var bufs=await Promise.all(segs.slice(i,i+6).map(function(s){return fetchBin(s.url)}));for(var j=0;j<bufs.length;j++)mux.push(bufs[j]);setBar(Math.min(55,i/segs.length*55))}var out=mux.finish().filter(Boolean);return{blob:new Blob(out,{type:'video/mp4'}),startOffset:Math.max(0,rg[0]-segs[0].start),dur:rg[1]-rg[0]}}
 async function gifFromBlob(blob,startT,durT){if(!(window.gifenc&&window.gifenc.GIFEncoder))throw new Error('GIF encoder not loaded');var url=URL.createObjectURL(blob);var v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='auto';v.src=url;
   await new Promise(function(res,rej){v.onloadedmetadata=function(){res()};v.onerror=function(){rej(new Error('Could not decode video for GIF'))};setTimeout(function(){rej(new Error('GIF decode timeout'))},20000)});
   var fps=12,maxW=480;var vw=v.videoWidth||maxW,vh=v.videoHeight||270;var scale=Math.min(1,maxW/vw);var w=Math.max(2,Math.round(vw*scale)),h=Math.max(2,Math.round(vh*scale));
@@ -1453,7 +1456,7 @@ async function makeGif(){if(!clientRef)return;var q=curQ();if(!q)return;var isCl
   try{log('🎞 Building GIF…');var src;
     if(isClip){var ab=await fetchBin(q.url);src={blob:new Blob([ab],{type:'video/mp4'}),startOffset:0,dur:Math.min(15,(curMeta&&curMeta.dur)||10)}}
     else{src=await buildSelectionMp4()}
-    log('Encoding frames…');var gif=await gifFromBlob(src.blob,src.startOffset,src.dur);
+    log('Encoding frames…');await ensureGifenc();var gif=await gifFromBlob(src.blob,src.startOffset,src.dur);
     var name=smartName(q)+'.gif';saveBlob(gif,name);setBar(100);log('✓ GIF saved: '+name+' ('+fb(gif.size)+')','ok');log('📁 Saved to your Downloads','ok');addRecent(name);flashOk();
   }catch(e){log('✗ GIF failed: '+((e&&e.message)||String(e)),'err')}finally{stopMicro();if(btn)btn.disabled=false}}
 function getQ(k){try{return new URLSearchParams(location.search).get(k)}catch(e){return null}}
