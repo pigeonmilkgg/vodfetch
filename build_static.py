@@ -47,6 +47,18 @@ def main() -> None:
             write("about.html" if code == DEFAULT_LANG else f"{code}/about.html", w.render_about(code))
             write("about.md" if code == DEFAULT_LANG else f"{code}/about.md", w.md_about(code))
 
+        # Statische Info-Seiten: Editorial policy + Colophon + Markdown (alle Sprachen)
+        if getattr(w, "PAGES_COPY", None):
+            for key in w.infopage_keys():
+                slug = w.INFO_PAGE_SLUGS[key]
+                for code in LANGUAGES:
+                    h = w.render_infopage(code, key)
+                    if h:
+                        write(f"{slug}.html" if code == DEFAULT_LANG else f"{code}/{slug}.html", h)
+                    md = w.md_infopage(code, key)
+                    if md:
+                        write(f"{slug}.md" if code == DEFAULT_LANG else f"{code}/{slug}.md", md)
+
         # Glossar + Markdown (alle Sprachen)
         if getattr(w, "GLOSSARY_DATA", None):
             for code in LANGUAGES:
