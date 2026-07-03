@@ -58,11 +58,13 @@ EN = {
     "nav_compare": "Comparisons",
     "nav_alternatives": "Alternatives",
     "nav_grounding": "Grounding page",
-    "meta_title": "Twitch Downloader — Download Twitch VODs, Clips & Streams to MP4",
+    "meta_title": "Twitch Downloader — Free VOD, Clip & Live Downloads to MP4",
     "meta_description": (
-        "Free Twitch downloader — save VODs, clips and live streams as MP4 in source "
-        "quality up to 1080p60. No account, no watermark, right in your browser."
+        "Free Twitch downloader — paste a link to save VODs, clips and live streams as "
+        "MP4 up to 1080p60. No account, no watermark, no install, open-source."
     ),
+    "minitool_label": "Got a Twitch link? Download it now — no account, no watermark:",
+    "minitool_btn": "Download",
     "meta_keywords": (
         "twitch downloader, twitch video downloader, twitch vod downloader, twitch clip "
         "downloader, download twitch videos, download twitch clips, twitch stream downloader, "
@@ -257,11 +259,13 @@ DE = {
     "nav_compare": "Vergleiche",
     "nav_alternatives": "Alternativen",
     "nav_grounding": "Grounding-Seite",
-    "meta_title": "Twitch Downloader — Twitch VODs, Clips & Streams als MP4 herunterladen",
+    "meta_title": "Twitch Downloader — VODs, Clips & Live gratis als MP4 laden",
     "meta_description": (
-        "Kostenloser Twitch Downloader — VODs, Clips & Live-Streams als MP4 in "
-        "Source-Qualität bis 1080p60. Ohne Konto, ohne Wasserzeichen, direkt im Browser."
+        "Kostenloser Twitch Downloader — Link einfügen und VODs, Clips & Live-Streams als "
+        "MP4 bis 1080p60 speichern. Ohne Konto, ohne Wasserzeichen, Open-Source."
     ),
+    "minitool_label": "Twitch-Link da? Jetzt herunterladen — ohne Konto, ohne Wasserzeichen:",
+    "minitool_btn": "Herunterladen",
     "meta_keywords": (
         "twitch downloader, twitch video downloader, twitch vod downloader, twitch clip "
         "downloader, twitch videos herunterladen, twitch clips herunterladen, twitch vod "

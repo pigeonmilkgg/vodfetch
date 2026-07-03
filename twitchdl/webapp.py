@@ -395,6 +395,22 @@ def _footer(t: dict, lang: str) -> str:
     )
 
 
+def _minitool_html(lang: str) -> str:
+    """Zero-JS Instant-Download-Box für Content-Seiten: Twitch-Link → leitet zum Tool (auto-analyze)."""
+    t = get_strings(lang)
+    home = lang_path(lang) or "/"
+    return (
+        f'<form class="minitool" action="{esc(home)}" method="get">'
+        f'<label for="mt-url">{esc(t.get("minitool_label", "Got a Twitch link? Download it now:"))}</label>'
+        f'<div class="minirow">'
+        f'<input id="mt-url" name="url" type="text" inputmode="url" autocomplete="off" spellcheck="false" '
+        f'placeholder="{esc(t["tool_url_ph"])}" required>'
+        f'<input type="hidden" name="go" value="1">'
+        f'<button type="submit">⬇ {esc(t.get("minitool_btn", "Download"))}</button>'
+        f'</div></form>'
+    )
+
+
 def build_body(t: dict, lang: str) -> str:
     types_cards = "".join(
         f'<article class="card"><h3>{esc(c["title"])}</h3><p>{esc(c["desc"])}</p></article>'
@@ -796,6 +812,7 @@ def render_blog_post(lang: str, slug: str) -> "str | None":
     <h1>{esc(d["title"])}</h1>
     {updated}
     <p class="answer">{esc(d["excerpt"])}</p>
+    {_minitool_html(lang)}
     {toc_html}
     {"".join(sec_html)}
     {steps_block}
@@ -1032,6 +1049,15 @@ html{scroll-behavior:smooth}
 .whythanks{margin-top:18px;border-top:1px solid var(--border);padding-top:16px}
 .whythanks h3{margin:0 0 6px;color:var(--purple);font-size:17px}
 .whyshare{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+/* instant download box on content pages */
+.minitool{border:1px solid var(--border);border-left:3px solid var(--purple);background:linear-gradient(180deg,rgba(145,71,255,.09),transparent);border-radius:12px;padding:16px 18px;margin:18px 0 26px}
+.minitool label{display:block;font-size:14px;font-weight:700;color:var(--text);margin:0 0 10px}
+.minirow{display:flex;gap:10px;flex-wrap:wrap}
+.minitool input[type=text]{flex:1;min-width:200px;height:54px;padding:0 16px;font-size:16px;background:var(--bg);border:1.5px solid var(--border);border-radius:11px;color:var(--text);outline:none}
+.minitool input[type=text]:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(145,71,255,.25)}
+.minitool button{width:auto;flex:0 0 auto;height:54px;padding:0 26px;font-size:16px;font-weight:800;color:#fff;border-radius:11px;background:linear-gradient(135deg,#a35bff,#7b2ff7);box-shadow:0 10px 26px -8px rgba(145,71,255,.6);cursor:pointer;transition:transform .12s}
+.minitool button:hover{transform:translateY(-1px)}
+@media(max-width:520px){.minitool button{width:100%}}
 /* ===== Premium hero / link-drop redesign ===== */
 .hero{position:relative;padding:56px 0 18px;overflow:visible}
 .hero::before{content:"";position:absolute;left:50%;top:-30px;width:min(1000px,128%);height:600px;transform:translateX(-50%);
@@ -1614,6 +1640,7 @@ def render_glossary(lang: str) -> str:
     <nav class="crumbs"><a href="{esc(lang_path(lang))}">{esc(BRAND)}</a> › <span>{esc(t["nav_glossary"])}</span></nav>
     <h1>{esc(t["glossary_h1"])}</h1>
     <p class="answer lead">{esc(t["glossary_sub"])}</p>
+    {_minitool_html(lang)}
     <dl class="glist">{items_html}</dl>
     <div class="cta"><h2>{esc(t["blog_cta_h"])}</h2><p>{esc(t["blog_cta_p"])}</p>
       <a class="ctabtn" href="{esc(lang_path(lang))}#tool">{esc(t["blog_cta_btn"])}</a></div>
@@ -1903,6 +1930,7 @@ def render_compare(lang: str, slug: str) -> "str | None":
     <nav class="crumbs"><a href="{esc(compare_index_path(lang))}">{esc(t.get("nav_compare", "Comparisons"))}</a> › <span>vs {esc(name)}</span></nav>
     <h1>vodfetch <span>vs</span> {esc(name)}</h1>
     <p class="answer lead">{esc(pr.get("intro", ""))}</p>
+    {_minitool_html(lang)}
     <blockquote class="aicapsule"><p>{esc(L["ui"]["invite"])}</p>
       <footer>— vodfetch · <button class="citelink" type="button" onclick="copyCite(this)" data-done="{esc(t.get("cite_done","Copied"))}">📋 {esc(t.get("cite_label","Cite / Copy for AI"))}</button></footer></blockquote>
     {table}
@@ -2038,6 +2066,7 @@ def render_alternative(lang: str, slug: str) -> "str | None":
     <nav class="crumbs"><a href="{esc(alternatives_index_path(lang))}">{esc(t.get("nav_alternatives", "Alternatives"))}</a> › <span>{esc(name)}</span></nav>
     <h1>{esc(a["h1"])}</h1>
     <p class="answer lead">{esc(a["lead"])}</p>
+    {_minitool_html(lang)}
     <blockquote class="aicapsule"><p>{esc(compare_labels(lang)["ui"]["invite"])}</p>
       <footer>— vodfetch · <button class="citelink" type="button" onclick="copyCite(this)" data-done="{esc(t.get("cite_done","Copied"))}">📋 {esc(t.get("cite_label","Cite / Copy for AI"))}</button></footer></blockquote>
     {table}
