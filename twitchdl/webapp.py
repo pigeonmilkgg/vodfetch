@@ -539,10 +539,7 @@ def build_body(t: dict, lang: str) -> str:
         "  </section>\n"
     ) if guide_cards else ""
 
-    tool_cards = "".join(
-        f'<article class="card"><h3><a href="{esc(landing_path(lang, s))}">{esc((landing_copy(lang, s) or {}).get("h1", s))}</a></h3>'
-        f'<p>{esc((landing_copy(lang, s) or {}).get("sub", ""))}</p></article>'
-        for s in landing_slugs() if landing_copy(lang, s))
+    tool_cards = _landing_cards_html(lang)
     tools_section = (
         f'\n  <section id="tools" class="block">\n    <h2>{esc(t.get("tools_h2", "Free Twitch download tools"))}</h2>\n'
         f'    <div class="cards">{tool_cards}</div>\n  </section>\n'
@@ -2024,8 +2021,11 @@ def render_compare_index(lang: str) -> str:
   <section class="hero bloghero">
     <h1>{esc(L["ui"]["index_h1"])}</h1>
     <p class="lead">{esc(L["ui"]["index_sub"])}</p>
+    <p class="answer" style="text-align:center;margin-top:10px"><a href="{esc(alternatives_index_path(lang))}"><b>{esc(alt_ui(lang, "")["index_h1"])}</b></a> · <a href="{esc(blog_index_path(lang))}">{esc(t["blog_h1"])}</a>{(' · <a href="' + esc(glossary_path(lang)) + '">' + esc(t["glossary_h1"]) + '</a>') if GLOSSARY_DATA else ''}</p>
+    {_minitool_html(lang)}
   </section>
   <section class="block"><div class="cards">{"".join(cards)}</div></section>
+  <section class="block"><h2>{esc(t.get("tools_h2", "Free Twitch download tools"))}</h2><div class="cards">{_landing_cards_html(lang)}</div></section>
 </main>
 {_footer(t, lang)}"""
     return _document(lang, head, body, tool_js=False)
@@ -2158,8 +2158,11 @@ def render_alternative_index(lang: str) -> str:
   <section class="hero bloghero">
     <h1>{esc(a0["index_h1"])}</h1>
     <p class="lead">{esc(a0["index_sub"])}</p>
+    <p class="answer" style="text-align:center;margin-top:10px"><a href="{esc(compare_index_path(lang))}"><b>{esc(compare_labels(lang)["ui"]["index_h1"])}</b></a> · <a href="{esc(blog_index_path(lang))}">{esc(t["blog_h1"])}</a>{(' · <a href="' + esc(glossary_path(lang)) + '">' + esc(t["glossary_h1"]) + '</a>') if GLOSSARY_DATA else ''}</p>
+    {_minitool_html(lang)}
   </section>
   <section class="block"><div class="cards">{"".join(cards)}</div></section>
+  <section class="block"><h2>{esc(t.get("tools_h2", "Free Twitch download tools"))}</h2><div class="cards">{_landing_cards_html(lang)}</div></section>
 </main>
 {_footer(t, lang)}"""
     return _document(lang, head, body, tool_js=False)
@@ -2312,6 +2315,14 @@ def _landing_alt_pairs(slug: str) -> list:
     for code, meta in LANGUAGES.items():
         pairs.append((meta["hreflang"], bu + landing_path(code, slug)))
     return pairs
+
+
+def _landing_cards_html(lang: str) -> str:
+    """Karten für alle Keyword-Landingpages (Home-Tools + Index-Querverlinkung)."""
+    return "".join(
+        f'<article class="card"><h3><a href="{esc(landing_path(lang, s))}">{esc((landing_copy(lang, s) or {}).get("h1", s))}</a></h3>'
+        f'<p>{esc((landing_copy(lang, s) or {}).get("sub", ""))}</p></article>'
+        for s in landing_slugs() if landing_copy(lang, s))
 
 
 def render_landing(lang: str, slug: str) -> "str | None":
