@@ -58,6 +58,9 @@ EN = {
     "nav_compare": "Comparisons",
     "nav_alternatives": "Alternatives",
     "nav_grounding": "Grounding page",
+    "tools_h2": "Free Twitch download tools",
+    "tool_cta_pre": "Ready to download? Use the free",
+    "related_guides_h": "Related guides",
     "meta_title": "Twitch Downloader — Free VOD, Clip & Live Downloads to MP4",
     "meta_description": (
         "Free Twitch downloader — paste a link to save VODs, clips and live streams as "
@@ -259,6 +262,9 @@ DE = {
     "nav_compare": "Vergleiche",
     "nav_alternatives": "Alternativen",
     "nav_grounding": "Grounding-Seite",
+    "tools_h2": "Kostenlose Twitch-Download-Tools",
+    "tool_cta_pre": "Bereit zum Download? Nutze den kostenlosen",
+    "related_guides_h": "Passende Anleitungen",
     "meta_title": "Twitch Downloader — VODs, Clips & Live gratis als MP4 laden",
     "meta_description": (
         "Kostenloser Twitch Downloader — Link einfügen und VODs, Clips & Live-Streams als "

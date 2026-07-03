@@ -528,6 +528,15 @@ def build_body(t: dict, lang: str) -> str:
         "  </section>\n"
     ) if guide_cards else ""
 
+    tool_cards = "".join(
+        f'<article class="card"><h3><a href="{esc(landing_path(lang, s))}">{esc((landing_copy(lang, s) or {}).get("h1", s))}</a></h3>'
+        f'<p>{esc((landing_copy(lang, s) or {}).get("sub", ""))}</p></article>'
+        for s in landing_slugs() if landing_copy(lang, s))
+    tools_section = (
+        f'\n  <section id="tools" class="block">\n    <h2>{esc(t.get("tools_h2", "Free Twitch download tools"))}</h2>\n'
+        f'    <div class="cards">{tool_cards}</div>\n  </section>\n'
+    ) if tool_cards else ""
+
     _aq = _urlquote(t.get("askai_q", ""))
     askai_btns = (
         f'<a class="aibtn" target="_blank" rel="noopener nofollow" href="https://chatgpt.com/?q={_aq}">ChatGPT</a>'
@@ -568,6 +577,7 @@ def build_body(t: dict, lang: str) -> str:
     <h2>{esc(t["types_h2"])}</h2>
     <div class="cards">{types_cards}</div>
   </section>
+{tools_section}
 
   <section id="features" class="block">
     <h2>{esc(t["features_h2"])}</h2>
@@ -813,6 +823,10 @@ def render_blog_post(lang: str, slug: str) -> "str | None":
                     f'<div class="cards">{"".join(related)}</div></section>') if related else ""
     steps_block = (f'<h2>{esc(t["how_h2"])}</h2><ol class="steps">{steps_html}</ol>') if steps_html else ""
     faq_block = (f'<h2>{esc(t["faq_h2"])}</h2><div class="faqs">{faq_html}</div>') if faq_html else ""
+    _lslug = BLOG_TO_LANDING.get(slug)
+    _lc = landing_copy(lang, _lslug) if _lslug else None
+    tool_cta = (f'<p class="toolcta">{esc(t.get("tool_cta_pre", "Ready to download? Use the free"))} '
+                f'<a href="{esc(landing_path(lang, _lslug))}"><b>{esc(_lc["h1"])}</b></a>.</p>') if _lc else ""
 
     body = f"""{_topbar(t, lang, blog=True)}
 <main>
@@ -826,6 +840,7 @@ def render_blog_post(lang: str, slug: str) -> "str | None":
     {"".join(sec_html)}
     {steps_block}
     {faq_block}
+    {tool_cta}
     <div class="cta">
       <h2>{esc(t["blog_cta_h"])}</h2>
       <p>{esc(t["blog_cta_p"])}</p>
@@ -1067,6 +1082,8 @@ html{scroll-behavior:smooth}
 .minitool button{width:auto;flex:0 0 auto;height:54px;padding:0 26px;font-size:16px;font-weight:800;color:#fff;border-radius:11px;background:linear-gradient(135deg,#a35bff,#7b2ff7);box-shadow:0 10px 26px -8px rgba(145,71,255,.6);cursor:pointer;transition:transform .12s}
 .minitool button:hover{transform:translateY(-1px)}
 @media(max-width:520px){.minitool button{width:100%}}
+.toolcta{background:var(--panel2);border-left:3px solid var(--purple);border-radius:10px;padding:12px 16px;margin:18px 0;font-size:15px;color:var(--text)}
+.toolcta a{font-weight:700}
 /* ===== Premium hero / link-drop redesign ===== */
 .hero{position:relative;padding:56px 0 18px;overflow:visible}
 .hero::before{content:"";position:absolute;left:50%;top:-30px;width:min(1000px,128%);height:600px;transform:translateX(-50%);
@@ -2232,6 +2249,32 @@ except ImportError:
     LANDING_COPY: dict = {}
 
 
+BLOG_TO_LANDING = {
+    "download-twitch-vod-before-deleted": "twitch-vod-downloader",
+    "download-twitch-clips-no-watermark": "twitch-clip-downloader",
+    "record-twitch-live-stream": "twitch-stream-downloader",
+    "download-entire-twitch-channel": "twitch-vod-downloader",
+    "convert-twitch-vod-to-mp4": "twitch-vod-downloader",
+    "download-twitch-vods-on-iphone-android": "twitch-video-downloader",
+    "download-twitch-clips-for-tiktok-youtube-shorts": "twitch-clip-to-gif",
+    "download-twitch-highlights": "twitch-video-downloader",
+    "extract-audio-from-twitch-vod-mp3": "twitch-to-mp3",
+    "download-twitch-vods-on-mac-and-windows": "twitch-video-downloader",
+    "is-it-legal-to-download-twitch-vods": "twitch-video-downloader",
+    "download-twitch-vod-with-chat": "twitch-chat-downloader",
+    "download-twitch-vod-1080p60": "twitch-vod-downloader",
+}
+LANDING_TO_BLOGS = {
+    "twitch-clip-downloader": ["download-twitch-clips-no-watermark", "download-twitch-clips-for-tiktok-youtube-shorts"],
+    "twitch-vod-downloader": ["download-twitch-vod-before-deleted", "convert-twitch-vod-to-mp4", "download-twitch-vod-1080p60"],
+    "twitch-video-downloader": ["download-twitch-vods-on-iphone-android", "download-twitch-vods-on-mac-and-windows"],
+    "twitch-stream-downloader": ["record-twitch-live-stream", "download-entire-twitch-channel"],
+    "twitch-to-mp3": ["extract-audio-from-twitch-vod-mp3"],
+    "twitch-clip-to-gif": ["download-twitch-clips-for-tiktok-youtube-shorts", "download-twitch-highlights"],
+    "twitch-chat-downloader": ["download-twitch-vod-with-chat"],
+}
+
+
 def landing_slugs() -> list:
     return list(LANDING_META.keys())
 
@@ -2286,6 +2329,11 @@ def render_landing(lang: str, slug: str) -> "str | None":
         links.append(f'<article class="card"><h3><a href="{esc(compare_index_path(lang))}">{esc(compare_labels(lang)["ui"]["index_h1"])}</a></h3></article>')
     links_html = (f'<section class="block"><h2>{esc(t["blog_h1"])}</h2><div class="cards">{"".join(links)}</div>'
                   f'<p style="margin-top:16px"><a class="readlink" href="{esc(blog_index_path(lang))}">{esc(t["blog_read"])}</a></p></section>') if links else ""
+    guide_links = "".join(
+        f'<article class="card"><h3><a href="{esc(blog_post_path(lang, b))}">{esc(bd["title"])}</a></h3><p>{esc(bd["excerpt"])}</p></article>'
+        for b in LANDING_TO_BLOGS.get(slug, []) for bd in [blog_post_data(b, lang)] if bd)
+    guides_block = (f'<section class="block"><h2>{esc(t.get("related_guides_h", "Related guides"))}</h2>'
+                    f'<div class="cards">{guide_links}</div></section>') if guide_links else ""
 
     page_id = canonical + "#webpage"
     app = {"@type": ["SoftwareApplication", "WebApplication"], "@id": bu + "/#app", "name": t["brand"],
@@ -2327,6 +2375,7 @@ def render_landing(lang: str, slug: str) -> "str | None":
   <section id="features" class="block"><h2>{esc(t["features_h2"])}</h2><div class="features">{feature_cards}</div></section>
   <section id="how" class="block"><h2>{esc(t["how_h2"])}</h2><ol class="steps">{how_steps}</ol></section>
   <section id="faq" class="block"><h2>{esc(t["faq_h2"])}</h2><div class="faqs">{faq_html}</div></section>
+  {guides_block}
   {_whybox_html(lang)}
 {links_html}
   <p class="disclaimer">{esc(t["disclaimer"])}</p>
