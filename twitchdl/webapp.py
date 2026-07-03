@@ -464,10 +464,13 @@ def _tool_card_html(t: dict, lang: str) -> str:
             </div>
           </div>
           <button class="ghost hidden" id="chatBtn" onclick="downloadChat()">{esc(t["tool_chat"])}</button>
+          <button class="ghost hidden" id="chapterBtn" onclick="downloadChapters()" title="{esc(t.get("tool_chapters_hint", ""))}">{esc(t.get("tool_chapters", "⬇ Chapters (.txt)"))}</button>
           <button class="ghost hidden" id="gifBtn" onclick="makeGif()" title="{esc(t["tool_gif_hint"])}">{esc(t["tool_gif"])}</button>
         </div>
         <button class="ghost hidden" id="stopBtn" onclick="stopJob()">{esc(t["tool_stop"])}</button>
       </div>
+
+      <div class="channelbrowse hidden" id="channelBox"></div>
 
       <div class="progress hidden" id="progressCard">
         <div class="bar"><i id="barFill"></i></div>
@@ -622,6 +625,15 @@ def _document(lang: str, head_inner: str, body_inner: str, tool_js: bool = False
             "paste": t.get("tool_paste_title", "Paste from clipboard"),
             "gif": t.get("tool_gif", "Make GIF"),
             "gifHint": t.get("tool_gif_hint", ""),
+            "cbRecentH": t.get("cb_recent_h", "Recent VODs & clips"),
+            "cbPartner": t.get("cb_partner", ""),
+            "cbBasic": t.get("cb_basic", ""),
+            "cbClipsH": t.get("cb_clips_h", "Popular clips"),
+            "cbEmpty": t.get("cb_empty", "No public VODs or clips found for this channel."),
+            "cbExpSoon": t.get("cb_exp_soon", "expires soon"),
+            "cbExpLeft": t.get("cb_exp_left", "left (est.)"),
+            "cbMore": t.get("cb_more", "Load more"),
+            "cbNotFound": t.get("cb_not_found", "Channel not found."),
         }, ensure_ascii=False).replace("<", "\\u003c")
         flag = "window.TWITCHDL_HOSTED=false;" if STATIC_MODE else ""
         # mux.js + gifenc werden on-demand geladen (siehe ensureMux/ensureGifenc) — spart ~137 KB Initial-Load
@@ -825,7 +837,8 @@ def render_blog_post(lang: str, slug: str) -> "str | None":
                  alt_pairs=_blog_post_alt_pairs(slug), jsonld=_jsonld_tags(blocks), og_type="article",
                  md_href=md_href_for(blog_post_path(lang, slug)))
 
-    updated = f'<p class="updated">{esc(t["blog_updated"])}: {esc(date)}</p>' if date else ""
+    updated = (f'<p class="updated">{esc(t["blog_updated"])}: {esc(date)} · '
+               f'<a href="{esc(about_path(lang))}">{esc(t.get("blog_byline", "Written by the vodfetch founder"))}</a></p>') if date else ""
     related_html = (f'<section class="block"><h2>{esc(t["blog_related"])}</h2>'
                     f'<div class="cards">{"".join(related)}</div></section>') if related else ""
     steps_block = (f'<h2>{esc(t["how_h2"])}</h2><ol class="steps">{steps_html}</ol>') if steps_html else ""
@@ -1022,6 +1035,23 @@ button{transition:transform .12s,background .15s,opacity .15s}
 .ptitle b{color:var(--text);font-size:15px;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .pmeta{font-size:12px;color:var(--muted);margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
 @media(max-width:600px){.preview{flex-direction:column}.pthumb{width:100%;height:auto;aspect-ratio:16/9}}
+/* channel browser: pick a VOD/clip when a pasted channel isn't live */
+.channelbrowse{margin-top:16px;border-top:1px solid var(--border);padding-top:16px;text-align:left}
+.channelbrowse h3{font-size:16px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.cbavatar{width:26px;height:26px;border-radius:50%;object-fit:cover}
+.cbnote{font-size:13px;color:var(--muted);margin:0 0 14px}
+.cbh4{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px;font-weight:700}
+.cbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.cbcard{display:flex;flex-direction:column;align-items:stretch;text-align:left;background:var(--panel2);
+border:1px solid var(--border);border-radius:10px;overflow:hidden;padding:0;width:100%;margin:0;cursor:pointer;
+transition:border-color .15s,transform .12s}
+.cbcard:hover{border-color:var(--purple);transform:translateY(-2px)}
+.cbcard img{width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--panel);display:block}
+.cbtitle{font-size:13px;font-weight:700;padding:8px 10px 2px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;
+-webkit-box-orient:vertical;overflow:hidden}
+.cbmeta{font-size:11px;color:var(--muted);padding:0 10px 8px}
+.cbexp{display:inline-block;margin:0 10px 10px;font-size:11px;font-weight:700;color:var(--red);
+background:rgba(255,92,92,.12);padding:3px 8px;border-radius:6px}
 /* visual trim scrubber */
 .scrub{position:relative;margin:4px 0 14px;padding-top:4px}
 .scrubtrack{position:relative;height:30px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;touch-action:none;cursor:pointer}
@@ -1285,22 +1315,30 @@ async function vodLiveInfo(ref){var token,usher,d;
   if(!r.ok)throw new Error('Usher '+r.status+(r.status===403?' (sub-only/expired)':r.status===404?' (offline/not found)':''));
   var quals=parseMaster(await r.text());if(!quals.length)throw new Error('No qualities available');
   var title=ref.kind==='vod'?'vod_'+ref.id:ref.id+'_live',author='',meta={kind:ref.kind,author:ref.id};
-  if(ref.kind==='vod'){try{var m=await gqlReq({query:'query($id:ID!){video(id:$id){title lengthSeconds viewCount publishedAt createdAt previewThumbnailURL(width:480,height:272) game{displayName} owner{displayName profileImageURL(width:70)} seekPreviewsURL}}',variables:{id:ref.id}});var v=m&&m.data&&m.data.video;if(v){title=v.title||title;var ow=v.owner||{};author=ow.displayName||'';meta={kind:'vod',title:v.title,author:ow.displayName,dur:v.lengthSeconds,thumb:v.previewThumbnailURL,avatar:ow.profileImageURL,game:(v.game||{}).displayName,views:v.viewCount,date:v.publishedAt||v.createdAt,seek:v.seekPreviewsURL}}}catch(e){}}
+  if(ref.kind==='vod'){try{var m=await gqlReq({query:'query($id:ID!){video(id:$id){title lengthSeconds viewCount publishedAt createdAt previewThumbnailURL(width:480,height:272) game{displayName} owner{displayName profileImageURL(width:70)} seekPreviewsURL moments(momentRequestType:VIDEO_CHAPTER_MARKERS){edges{node{description positionMilliseconds}}}}}',variables:{id:ref.id}});var v=m&&m.data&&m.data.video;if(v){title=v.title||title;var ow=v.owner||{};author=ow.displayName||'';var chapters=((v.moments&&v.moments.edges)||[]).map(function(e){return e.node});meta={kind:'vod',title:v.title,author:ow.displayName,dur:v.lengthSeconds,thumb:v.previewThumbnailURL,avatar:ow.profileImageURL,game:(v.game||{}).displayName,views:v.viewCount,date:v.publishedAt||v.createdAt,seek:v.seekPreviewsURL,chapters:chapters}}}catch(e){}}
   return{title:title,author:author,duration:(ref.kind==='vod'&&meta.dur)||null,qualities:quals,meta:meta}}
 async function loadMedia(idx){
   if(clientMedia[idx])return clientMedia[idx];
   var q=clientQ[idx];var r=await fetch(P(q.url));if(!r.ok)throw new Error('Playlist HTTP '+r.status);
   var m=parseMedia(await r.text(),baseOf(q.url));clientMedia[idx]=m;return m}
 async function clientAnalyze(){var b=$('analyzeBtn');b.disabled=true;b.textContent=I18N.analyzing;startMicro();
-  ['resultCard','progressCard'].forEach(function(i){if(G(i))G(i).classList.add('hidden')});
+  ['resultCard','progressCard','channelBox'].forEach(function(i){if(G(i))G(i).classList.add('hidden')});
   try{var ref=parseInput($('url').value);clientRef=ref;curKind=ref.kind;clientMedia={};storyboard=null;
-    var info=ref.kind==='clip'?await clipInfo(ref.id):await vodLiveInfo(ref);clientQ=info.qualities;curMeta=info.meta||{kind:ref.kind};
+    var info;
+    if(ref.kind==='channel'){
+      try{info=await vodLiveInfo(ref)}
+      catch(liveErr){await renderChannelBrowse(ref.id);return}
+    }else{
+      info=ref.kind==='clip'?await clipInfo(ref.id):await vodLiveInfo(ref);
+    }
+    clientQ=info.qualities;curMeta=info.meta||{kind:ref.kind};
     renderPreview(info,ref.kind);
     var sel=$('quality');sel.innerHTML='';
     info.qualities.forEach(function(q,i){var o=document.createElement('option');o.value=String(i);o.textContent=(q.is_source?'★ ':'')+q.label;sel.appendChild(o)});
     sel.value='0';
     if(G('trimBox'))G('trimBox').classList.add('hidden');if(G('trimOn'))G('trimOn').checked=false;if(G('trimBody'))G('trimBody').classList.add('hidden');trim={on:false,start:0,end:0};
     if(G('chatBtn'))G('chatBtn').classList.toggle('hidden',ref.kind!=='vod');
+    if(G('chapterBtn'))G('chapterBtn').classList.toggle('hidden',!(ref.kind==='vod'&&curMeta&&curMeta.chapters&&curMeta.chapters.length>0));
     if(G('filename'))G('filename').value='';
     if(ref.kind==='vod'){try{var m=await loadMedia(0);totalDur=m.total;trim.end=totalDur;
       if(G('trimBox')){G('trimBox').classList.remove('hidden');G('tStart').value=ft(0);G('tEnd').value=ft(totalDur);syncScrub();}
@@ -1414,6 +1452,53 @@ async function downloadChat(){if(!clientRef||clientRef.kind!=='vod')return;var b
     saveBlob(new Blob([lines.join('\n')],{type:'text/plain'}),safeName(clientRef.id)+'_chat.txt');
     log('✓ Chat saved ('+n+' messages)','ok')}
   catch(e){log('✗ '+((e&&e.message)||String(e)),'err')}finally{btn.disabled=false}}
+function downloadChapters(){if(!clientRef||clientRef.kind!=='vod')return;var ch=(curMeta&&curMeta.chapters)||[];if(!ch.length)return;
+  var lines=ch.map(function(c){return '['+ft(Math.round((c.positionMilliseconds||0)/1000))+'] '+(c.description||'—')});
+  saveBlob(new Blob([lines.join('\n')],{type:'text/plain'}),safeName(clientRef.id)+'_chapters.txt');
+  $('progressCard').classList.remove('hidden');log('✓ Chapters saved ('+ch.length+')','ok');flashOk()}
+/* ---- Channel browser: paste a channel name, pick from its recent VODs/clips ---- */
+let cbCursor=null,cbLogin=null;
+async function renderChannelBrowse(login){
+  var q='query($l:String!){user(login:$l){id displayName profileImageURL(width:70) roles{isPartner isAffiliate} '+
+    'videos(first:24,type:ARCHIVE,sort:TIME){pageInfo{hasNextPage} edges{cursor node{id title lengthSeconds viewCount publishedAt previewThumbnailURL(width:320,height:180) game{displayName}}}} '+
+    'clips(first:12,criteria:{period:ALL_TIME,sort:VIEWS_DESC}){edges{node{id slug title viewCount durationSeconds createdAt thumbnailURL}}}}}';
+  var d=await gqlReq({query:q,variables:{l:login}});var u=d&&d.data&&d.data.user;
+  if(!u)throw new Error(I18N.cbNotFound||'Channel not found.');
+  cbLogin=login;var box=G('channelBox');if(!box)return;
+  var partner=!!(u.roles&&(u.roles.isPartner||u.roles.isAffiliate));
+  var vids=((u.videos&&u.videos.edges)||[]);var clips=((u.clips&&u.clips.edges)||[]);
+  cbCursor=(u.videos&&u.videos.pageInfo&&u.videos.pageInfo.hasNextPage&&vids.length)?vids[vids.length-1].cursor:null;
+  var html='<h3>'+(u.profileImageURL?'<img class="cbavatar" src="'+eh(u.profileImageURL)+'" alt="" referrerpolicy="no-referrer">':'')+eh(u.displayName||login)+'</h3>';
+  html+='<p class="cbnote">'+eh(partner?I18N.cbPartner:I18N.cbBasic)+'</p>';
+  if(vids.length){html+='<p class="cbh4">'+eh(I18N.cbRecentH)+'</p><div class="cbgrid" id="cbVidGrid">'+vids.map(function(e){return cbCard(e.node,'vod',partner)}).join('')+'</div>'}
+  if(clips.length){html+='<p class="cbh4">'+eh(I18N.cbClipsH)+'</p><div class="cbgrid">'+clips.map(function(e){return cbCard(e.node,'clip',partner)}).join('')+'</div>'}
+  if(!vids.length&&!clips.length)html+='<p class="cbnote">'+eh(I18N.cbEmpty)+'</p>';
+  box.innerHTML=html;box.classList.remove('hidden');
+  box.onclick=function(ev){var t=ev.target;var card=t&&t.closest?t.closest('.cbcard'):null;if(card&&card.dataset.url){$('url').value=card.dataset.url;analyze()}};
+  if(cbCursor){var more=document.createElement('button');more.type='button';more.className='ghost';more.textContent=I18N.cbMore;
+    more.onclick=function(){loadMoreChannel()};box.appendChild(more)}
+}
+async function loadMoreChannel(){if(!cbCursor||!cbLogin)return;
+  var q='query($l:String!,$c:Cursor!){user(login:$l){videos(first:24,type:ARCHIVE,sort:TIME,after:$c){pageInfo{hasNextPage} '+
+    'edges{cursor node{id title lengthSeconds viewCount publishedAt previewThumbnailURL(width:320,height:180) game{displayName}}}}}}';
+  var d=await gqlReq({query:q,variables:{l:cbLogin,c:cbCursor}});var v=d&&d.data&&d.data.user&&d.data.user.videos;if(!v)return;
+  var edges=v.edges||[];var grid=G('cbVidGrid');if(grid)grid.insertAdjacentHTML('beforeend',edges.map(function(e){return cbCard(e.node,'vod',null)}).join(''));
+  cbCursor=(v.pageInfo&&v.pageInfo.hasNextPage&&edges.length)?edges[edges.length-1].cursor:null;
+  var btns=G('channelBox').querySelectorAll('button.ghost');var more=btns[btns.length-1];if(more){if(!cbCursor)more.remove()}
+}
+function cbExpiryBadge(node,partner){if(partner==null)return'';var pub=node.publishedAt?new Date(node.publishedAt).getTime():0;if(!pub)return'';
+  var days=(Date.now()-pub)/86400000;var retDays=partner?60:7;var left=Math.ceil(retDays-days);
+  if(left<=0)return '<span class="cbexp">'+eh(I18N.cbExpSoon)+'</span>';
+  if(left<=14)return '<span class="cbexp">~'+left+'d '+eh(I18N.cbExpLeft)+'</span>';return ''}
+function cbCard(node,kind,partner){
+  var url=kind==='vod'?('https://www.twitch.tv/videos/'+node.id):('https://clips.twitch.tv/'+node.slug);
+  var thumb=node.previewThumbnailURL||node.thumbnailURL||'';var dur=node.lengthSeconds!=null?node.lengthSeconds:node.durationSeconds;
+  var badge=kind==='vod'?cbExpiryBadge(node,partner):'';var date=fmtDate(node.publishedAt||node.createdAt);
+  var bits=[];if(node.game&&node.game.displayName)bits.push(eh(node.game.displayName));bits.push(ft(dur));if(date)bits.push(date);
+  return '<button type="button" class="cbcard" data-url="'+eh(url)+'">'+
+    (thumb?'<img loading="lazy" src="'+eh(thumb)+'" alt="" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">':'')+
+    '<span class="cbtitle">'+eh(node.title||'—')+'</span>'+
+    '<span class="cbmeta">'+bits.join(' · ')+'</span>'+badge+'</button>'}
 /* ---- UX: paste, microcopy, preview, smart filename ---- */
 async function pasteUrl(){try{var t=await navigator.clipboard.readText();if(t&&t.trim()){$('url').value=t.trim();analyze()}else{$('url').focus()}}catch(e){$('url').focus()}}
 function startMicro(){var el=G('micro');if(!el||!I18N.loading||!I18N.loading.length)return;el.classList.remove('hidden');microIdx=Math.floor(Math.random()*I18N.loading.length);el.textContent=I18N.loading[microIdx];clearInterval(microTimer);microTimer=setInterval(function(){microIdx=(microIdx+1)%I18N.loading.length;el.textContent=I18N.loading[microIdx]},2200)}
@@ -2269,10 +2354,10 @@ except ImportError:
 
 
 BLOG_TO_LANDING = {
-    "download-twitch-vod-before-deleted": "twitch-vod-downloader",
+    "download-twitch-vod-before-deleted": "twitch-channel-downloader",
     "download-twitch-clips-no-watermark": "twitch-clip-downloader",
     "record-twitch-live-stream": "twitch-stream-downloader",
-    "download-entire-twitch-channel": "twitch-vod-downloader",
+    "download-entire-twitch-channel": "twitch-channel-downloader",
     "convert-twitch-vod-to-mp4": "twitch-vod-downloader",
     "download-twitch-vods-on-iphone-android": "twitch-video-downloader",
     "download-twitch-clips-for-tiktok-youtube-shorts": "twitch-clip-to-gif",
@@ -2282,15 +2367,17 @@ BLOG_TO_LANDING = {
     "is-it-legal-to-download-twitch-vods": "twitch-video-downloader",
     "download-twitch-vod-with-chat": "twitch-chat-downloader",
     "download-twitch-vod-1080p60": "twitch-vod-downloader",
+    "best-twitch-downloader": "twitch-vod-downloader",
 }
 LANDING_TO_BLOGS = {
     "twitch-clip-downloader": ["download-twitch-clips-no-watermark", "download-twitch-clips-for-tiktok-youtube-shorts"],
-    "twitch-vod-downloader": ["download-twitch-vod-before-deleted", "convert-twitch-vod-to-mp4", "download-twitch-vod-1080p60"],
+    "twitch-vod-downloader": ["convert-twitch-vod-to-mp4", "download-twitch-vod-1080p60", "best-twitch-downloader"],
     "twitch-video-downloader": ["download-twitch-vods-on-iphone-android", "download-twitch-vods-on-mac-and-windows"],
-    "twitch-stream-downloader": ["record-twitch-live-stream", "download-entire-twitch-channel"],
+    "twitch-stream-downloader": ["record-twitch-live-stream"],
     "twitch-to-mp3": ["extract-audio-from-twitch-vod-mp3"],
     "twitch-clip-to-gif": ["download-twitch-clips-for-tiktok-youtube-shorts", "download-twitch-highlights"],
     "twitch-chat-downloader": ["download-twitch-vod-with-chat"],
+    "twitch-channel-downloader": ["download-entire-twitch-channel", "download-twitch-vod-before-deleted"],
 }
 
 
