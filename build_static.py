@@ -115,6 +115,9 @@ def main() -> None:
         write("humans.txt", w.build_humans())
         write("facts.md", w.build_facts_md())
         write("facts.json", w.build_facts_json())
+        write("grounding.html", w.render_grounding())
+        write("grounding.md", w.md_grounding())
+        write("grounding.json", w.build_grounding_json())
         # Per-Sprache: llms.txt, llms-full.txt, faq.md (Inhalt bereits übersetzt)
         for code in LANGUAGES:
             if code == DEFAULT_LANG:

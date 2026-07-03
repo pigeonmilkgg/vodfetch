@@ -57,6 +57,7 @@ EN = {
     "compare_h1": "Compare",
     "nav_compare": "Comparisons",
     "nav_alternatives": "Alternatives",
+    "nav_grounding": "Grounding page",
     "meta_title": "Twitch Downloader — Download Twitch VODs, Clips & Streams to MP4",
     "meta_description": (
         "Free Twitch downloader — save VODs, clips and live streams as MP4 in source "
@@ -255,6 +256,7 @@ DE = {
     "compare_h1": "Vergleich",
     "nav_compare": "Vergleiche",
     "nav_alternatives": "Alternativen",
+    "nav_grounding": "Grounding-Seite",
     "meta_title": "Twitch Downloader — Twitch VODs, Clips & Streams als MP4 herunterladen",
     "meta_description": (
         "Kostenloser Twitch Downloader — VODs, Clips & Live-Streams als MP4 in "
