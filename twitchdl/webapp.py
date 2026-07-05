@@ -157,7 +157,7 @@ def _org_node(t: dict) -> dict:
     bu = base_url()
     o = {
         "@type": "Organization", "@id": bu + "/#organization",
-        "name": BRAND, "url": bu + "/",
+        "name": BRAND, "alternateName": "vodfetch", "url": bu + "/",
         "description": t.get("org_description") or ORG_DESC_EN,
         "logo": _ref("/#logo"), "image": _ref("/#logo"),
         "brand": {"@type": "Brand", "name": BRAND},
@@ -174,7 +174,7 @@ def _website_node() -> dict:
     bu = base_url()
     return {
         "@type": "WebSite", "@id": bu + "/#website",
-        "name": BRAND, "url": bu + "/",
+        "name": BRAND, "alternateName": "vodfetch", "url": bu + "/",
         "description": "Free Twitch downloader to save Twitch VODs, clips and live streams as MP4.",
         "publisher": _ref("/#organization"),
         "inLanguage": [LANGUAGES[c]["hreflang"] for c in LANGUAGES],
@@ -204,7 +204,7 @@ def build_jsonld(t: dict, lang: str, canonical: str) -> str:
     bu = base_url()
     software = {
         "@type": ["SoftwareApplication", "WebApplication"], "@id": bu + "/#app",
-        "name": t["brand"], "url": bu + "/",
+        "name": "vodfetch", "alternateName": t["brand"], "url": bu + "/",
         "applicationCategory": "MultimediaApplication",
         "applicationSubCategory": "Video Downloader",
         "operatingSystem": "All",
@@ -2468,7 +2468,8 @@ def render_landing(lang: str, slug: str) -> "str | None":
                     f'<div class="cards">{guide_links}</div></section>') if guide_links else ""
 
     page_id = canonical + "#webpage"
-    app = {"@type": ["SoftwareApplication", "WebApplication"], "@id": bu + "/#app", "name": t["brand"],
+    app = {"@type": ["SoftwareApplication", "WebApplication"], "@id": bu + "/#app", "name": "vodfetch",
+           "alternateName": t["brand"],
            "url": bu + "/", "applicationCategory": "MultimediaApplication", "operatingSystem": "All",
            "inLanguage": hreflang, "description": c["meta"], "isAccessibleForFree": True,
            "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD", "category": "free"},
