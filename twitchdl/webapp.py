@@ -483,7 +483,7 @@ def _tool_card_html(t: dict, lang: str) -> str:
       </div>
 
       <div class="recent hidden" id="recentBox">
-        <h3>{esc(t["tool_recent"])}</h3>
+        <p class="recent-h">{esc(t["tool_recent"])}</p>
         <ul id="recentList"></ul>
       </div>
     </div>"""
@@ -702,7 +702,7 @@ def render_blog_index(lang: str) -> str:
         pos += 1
         href = blog_post_path(lang, slug)
         cards.append(
-            f'<article class="card"><h3><a href="{esc(href)}">{esc(d["title"])}</a></h3>'
+            f'<article class="card"><h2 class="cardh"><a href="{esc(href)}">{esc(d["title"])}</a></h2>'
             f'<p>{esc(d["excerpt"])}</p>'
             f'<a class="readlink" href="{esc(href)}">{esc(t["blog_read"])}</a></article>'
         )
@@ -940,7 +940,7 @@ section h2{font-size:27px;font-weight:800;margin:0 0 18px;letter-spacing:-.01em}
 section.prose p{color:var(--muted);font-size:16px;max-width:680px}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
 .card{background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:20px}
-.card h3{font-size:17px;margin:0 0 8px}.card p{color:var(--muted);font-size:14px;margin:0}
+.card h3,.card h2.cardh{font-size:17px;margin:0 0 8px;font-weight:700}.card p{color:var(--muted);font-size:14px;margin:0}
 .features{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
 .feature{background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:20px}
 .feature .ficon{width:38px;height:38px;color:var(--purple);margin-bottom:12px}
@@ -999,7 +999,7 @@ border:1px solid rgba(145,71,255,.4);border-radius:14px;padding:26px;margin:34px
 .seldur{font-size:13px;color:var(--purple);font-weight:700;margin-left:auto}
 .btnrow{display:flex;gap:10px}.btnrow button{flex:1}
 .recent{margin-top:16px;border-top:1px solid var(--border);padding-top:14px}
-.recent h3{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px}
+.recent .recent-h{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:0 0 8px}
 .recent ul{list-style:none;margin:0;padding:0;font-size:13px}
 .recent li{padding:4px 0;color:var(--muted);display:flex;justify-content:space-between;gap:10px}
 .recent li b{color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -2099,7 +2099,7 @@ def render_compare_index(lang: str) -> str:
         pr = compare_prose(lang, s)
         pos += 1
         href = compare_path(lang, s)
-        cards.append(f'<article class="card"><h3><a href="{esc(href)}">vodfetch vs {esc(m["name"])}</a></h3>'
+        cards.append(f'<article class="card"><h2 class="cardh"><a href="{esc(href)}">vodfetch vs {esc(m["name"])}</a></h2>'
                      f'<p>{esc(pr.get("intro", ""))}</p></article>')
         items.append({"@type": "ListItem", "position": pos, "url": bu + href, "name": f'vodfetch vs {m["name"]}'})
     coll = {"@type": "CollectionPage", "@id": canonical + "#webpage", "url": canonical,
@@ -2196,7 +2196,9 @@ def render_alternative(lang: str, slug: str) -> "str | None":
     jsonld = _jsonld_tags([_org_node(t), _logo_node(), _website_node(), webpage,
                            _primaryimage_node(canonical + "#primaryimage"),
                            _compare_faq_node(lang, slug, canonical), crumbs])
-    head = _head(lang, title=f'{a["title"]} | Twitch Downloader', description=desc,
+    # Title endet bereits auf "— vodfetch"; KEIN redundantes " | Twitch Downloader" anhängen
+    # (spart ~21 Zeichen → keine SERP-Truncation, keine doppelte Marke).
+    head = _head(lang, title=a["title"], description=desc,
                  keywords=t["meta_keywords"], canonical=canonical, alt_pairs=_alt_alt_pairs(slug),
                  jsonld=jsonld, og_type="article", md_href=md_href_for(alternative_path(lang, slug)))
     full = (f'<p><a class="readlink" href="{esc(compare_path(lang, slug))}">{esc(a["full_link"])} →</a></p>')
@@ -2236,7 +2238,7 @@ def render_alternative_index(lang: str) -> str:
         a = alt_ui(lang, m["name"])
         pos += 1
         href = alternative_path(lang, s)
-        cards.append(f'<article class="card"><h3><a href="{esc(href)}">{esc(a["h1"])}</a></h3>'
+        cards.append(f'<article class="card"><h2 class="cardh"><a href="{esc(href)}">{esc(a["h1"])}</a></h2>'
                      f'<p>{esc(a["lead"])}</p></article>')
         items.append({"@type": "ListItem", "position": pos, "url": bu + href, "name": a["h1"]})
     coll = {"@type": "CollectionPage", "@id": canonical + "#webpage", "url": canonical,
