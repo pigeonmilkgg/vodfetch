@@ -611,7 +611,7 @@ def build_body(t: dict, lang: str) -> str:
         "  </section>\n"
     ) if guide_cards else ""
 
-    tool_cards = _landing_cards_html(lang)
+    tool_cards = _landing_cards_html(lang) + _stats_cards_html(lang)
     tools_section = (
         f'\n  <section id="tools" class="block">\n    <h2>{esc(t.get("tools_h2", "Free Twitch download tools"))}</h2>\n'
         f'    <div class="cards">{tool_cards}</div>\n  </section>\n'
@@ -2655,6 +2655,24 @@ def _landing_cards_html(lang: str) -> str:
         for s in landing_slugs() if landing_copy(lang, s))
 
 
+def _stats_cards_html(lang: str) -> str:
+    """In-Content-Karten für den Stats-/Rankings-Cluster + Streamer-Verzeichnis.
+
+    Verhindert, dass der Cluster eine Footer-only-Insel bleibt: eingebunden auf der
+    Home-Tools-Sektion und in den Link-Sektionen der Stats-Tool-Landings."""
+    cards = []
+    for key in ("records", "mostfollowed", "germanstreamers", "subcounts", "methodology"):
+        c = infopage_copy(lang, key)
+        if c:
+            cards.append(f'<article class="card"><h3><a href="{esc(infopage_path(lang, key))}">{esc(c["h1"])}</a></h3>'
+                         f'<p>{esc(c.get("lead", "")[:110])}</p></article>')
+    if STREAMER_PAGES:
+        t = get_strings(lang)
+        cards.append(f'<article class="card"><h3><a href="/streamer">{esc(t.get("nav_streamers", "Streamer directory"))}</a></h3>'
+                     f'<p>{len(STREAMER_PAGES)} Streamer · VODs · Clips · MP4</p></article>')
+    return "".join(cards)
+
+
 def render_landing(lang: str, slug: str) -> "str | None":
     if slug not in LANDING_META:
         return None
@@ -2697,6 +2715,8 @@ def render_landing(lang: str, slug: str) -> "str | None":
                 links.append(f'<article class="card"><h3><a href="{esc(landing_path(lang, s))}">{esc(oc["h1"])}</a></h3><p>{esc(oc["sub"])}</p></article>')
     if COMPARE_META:
         links.append(f'<article class="card"><h3><a href="{esc(compare_index_path(lang))}">{esc(compare_labels(lang)["ui"]["index_h1"])}</a></h3></article>')
+    if kind in ("checker", "follower", "topgames", "chatlog"):
+        links.append(_stats_cards_html(lang))
     links_html = (f'<section class="block"><h2>{esc(t["blog_h1"])}</h2><div class="cards">{"".join(links)}</div>'
                   f'<p style="margin-top:16px"><a class="readlink" href="{esc(blog_index_path(lang))}">{esc(t["blog_read"])}</a></p></section>') if links else ""
     guide_links = "".join(
@@ -2789,7 +2809,7 @@ _ST_UI = {
         "faq_exp_q": "How long do {name}'s VODs stay online?",
         "faq_exp_a_p": "As a Twitch Partner channel, past broadcasts are typically stored for up to 60 days, then deleted automatically. Clips don't expire. If you want to keep a stream, download it before the timer runs out.",
         "faq_exp_a_np": "Twitch stores past broadcasts for 7 days on basic channels (up to 14 with Prime/Turbo, 60 for Partners), then deletes them automatically. Clips don't expire. If you want to keep a stream, download it in time.",
-        "rel_h": "More streamer pages", "dir_link": "All streamer pages →",
+        "live_check": "check the live count →", "rel_h": "More streamer pages", "dir_link": "All streamer pages →",
         "note": "vodfetch is not affiliated with {name} or Twitch. Facts above: Twitch public API, {d}; live elements load in your browser.",
     },
     "de": {
@@ -2805,7 +2825,7 @@ _ST_UI = {
         "faq_exp_q": "Wie lange bleiben die VODs von {name} online?",
         "faq_exp_a_p": "Als Twitch-Partner-Kanal bleiben vergangene Übertragungen in der Regel bis zu 60 Tage gespeichert und werden dann automatisch gelöscht. Clips verfallen nicht. Wer einen Stream behalten will, lädt ihn vorher herunter.",
         "faq_exp_a_np": "Twitch speichert vergangene Übertragungen 7 Tage (bis zu 14 mit Prime/Turbo, 60 für Partner) und löscht sie dann automatisch. Clips verfallen nicht. Wer einen Stream behalten will, lädt ihn rechtzeitig herunter.",
-        "rel_h": "Weitere Streamer-Seiten", "dir_link": "Alle Streamer-Seiten →",
+        "live_check": "Live-Zahl prüfen →", "rel_h": "Weitere Streamer-Seiten", "dir_link": "Alle Streamer-Seiten →",
         "note": "vodfetch ist nicht mit {name} oder Twitch verbunden. Fakten oben: öffentliche Twitch-API, {d}; Live-Elemente lädt dein Browser.",
     },
     "fr": {
@@ -2821,7 +2841,7 @@ _ST_UI = {
         "faq_exp_q": "Combien de temps les VOD de {name} restent-elles en ligne ?",
         "faq_exp_a_p": "Chaîne Partenaire Twitch : les diffusions passées sont généralement conservées jusqu'à 60 jours, puis supprimées automatiquement. Les clips n'expirent pas. Pour garder un stream, téléchargez-le avant l'échéance.",
         "faq_exp_a_np": "Twitch conserve les diffusions passées 7 jours (jusqu'à 14 avec Prime/Turbo, 60 pour les Partenaires), puis les supprime automatiquement. Les clips n'expirent pas. Pour garder un stream, téléchargez-le à temps.",
-        "rel_h": "Autres pages streamers", "dir_link": "Toutes les pages streamers →",
+        "live_check": "vérifier en direct →", "rel_h": "Autres pages streamers", "dir_link": "Toutes les pages streamers →",
         "note": "vodfetch n'est affilié ni à {name} ni à Twitch. Données : API publique de Twitch, {d} ; les éléments en direct se chargent dans votre navigateur.",
     },
     "es": {
@@ -2837,7 +2857,7 @@ _ST_UI = {
         "faq_exp_q": "¿Cuánto tiempo permanecen online los VOD de {name}?",
         "faq_exp_a_p": "Como canal Partner de Twitch, las emisiones pasadas se conservan normalmente hasta 60 días y luego se borran automáticamente. Los clips no caducan. Si quieres conservar un stream, descárgalo antes de que expire.",
         "faq_exp_a_np": "Twitch conserva las emisiones pasadas 7 días (hasta 14 con Prime/Turbo, 60 para Partners) y luego las borra automáticamente. Los clips no caducan. Si quieres conservar un stream, descárgalo a tiempo.",
-        "rel_h": "Más páginas de streamers", "dir_link": "Todas las páginas de streamers →",
+        "live_check": "comprobar en vivo →", "rel_h": "Más páginas de streamers", "dir_link": "Todas las páginas de streamers →",
         "note": "vodfetch no está afiliado a {name} ni a Twitch. Datos: API pública de Twitch, {d}; los elementos en vivo se cargan en tu navegador.",
     },
 }
@@ -2921,7 +2941,7 @@ def render_streamer(login: str) -> "str | None":
   <article class="article">
     <nav class="crumbs"><a href="{esc(lang_path(lang))}">{esc(BRAND)}</a> › <a href="/streamer">Streamer</a> › <span>{esc(name)}</span></nav>
     <h1>{esc(name)}{badges}</h1>
-    <p class="cbnote">{esc(" · ".join(facts_bits))}</p>
+    <p class="cbnote">{esc(" · ".join(facts_bits))} · <a href="{esc(landing_path(lang, "twitch-follower-count"))}">{esc(ui.get("live_check", "live check →"))}</a></p>
     <p class="answer">{esc(d["blurb"])}</p>
     {bio_block}
     <script>window.TWDL_BOOT={json.dumps(login)};</script>
@@ -2993,7 +3013,7 @@ def render_streamer_index() -> str:
     <nav class="crumbs"><a href="/">{esc(BRAND)}</a> › <span>Streamer</span></nav>
     <h1>Twitch Streamer Directory</h1>
     <p class="answer">{esc(intro)}</p>
-    <p><a class="readlink" href="/methodology">How this data is measured →</a></p>
+    <p><a class="readlink" href="/methodology">How this data is measured →</a> · <a class="readlink" href="/most-followed-twitch-streamers">Most-followed ranking →</a> · <a class="readlink" href="/german-twitch-streamers">German top 15 →</a></p>
     {"".join(secs)}
   </article>
 </main>
@@ -3072,6 +3092,15 @@ def _infopage_related(lang: str, key: str) -> list:
                 oc = infopage_copy(lang, other)
                 if oc:
                     links.append((oc["h1"], infopage_path(lang, other)))
+        # Cluster → Tools + Streamer-Verzeichnis (kontextueller Ausstieg in die Money-Pages)
+        fc = landing_copy(lang, "twitch-follower-count")
+        if fc:
+            links.append((fc["h1"], landing_path(lang, "twitch-follower-count")))
+        tg = landing_copy(lang, "twitch-top-games")
+        if tg and key in ("records", "methodology"):
+            links.append((tg["h1"], landing_path(lang, "twitch-top-games")))
+        if STREAMER_PAGES:
+            links.append((get_strings(lang).get("nav_streamers", "Streamer directory"), "/streamer"))
         oc = infopage_copy(lang, "editorial")
         if oc:
             links.append((oc["h1"], infopage_path(lang, "editorial")))
@@ -3114,8 +3143,9 @@ def render_infopage(lang: str, key: str) -> "str | None":
     itemlist_ld = None
     if c.get("list"):
         rows = "".join(
-            f'<li><span class="rl-name">{esc(r["name"])}</span>'
-            f'<span class="rl-val">{esc(r["value"])}</span>'
+            '<li><span class="rl-name">'
+            + (f'<a href="{esc(r["href"])}">{esc(r["name"])}</a>' if r.get("href") else esc(r["name"]))
+            + f'</span><span class="rl-val">{esc(r["value"])}</span>'
             + (f'<span class="rl-note">{esc(r["note"])}</span>' if r.get("note") else "")
             + "</li>"
             for r in c["list"])
@@ -3124,7 +3154,8 @@ def render_infopage(lang: str, key: str) -> "str | None":
         itemlist_ld = {"@type": "ItemList", "@id": canonical + "#ranking",
                        "name": c.get("list_h") or c["h1"], "inLanguage": hreflang,
                        "numberOfItems": len(c["list"]),
-                       "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": r["name"]}
+                       "itemListElement": [dict({"@type": "ListItem", "position": i + 1, "name": r["name"]},
+                                                **({"url": base_url() + r["href"]} if r.get("href") else {}))
                                            for i, r in enumerate(c["list"])]}
 
     # Editorial: the canonical-pages block (explicit "cite these" guidance); FAQ für jede Seite mit faqs
@@ -3206,7 +3237,8 @@ def md_infopage(lang: str, key: str) -> "str | None":
             L += [f"## {c['list_h']}", ""]
         for i, r in enumerate(c["list"], 1):
             note = f" — {r['note']}" if r.get("note") else ""
-            L.append(f"{i}. **{r['name']}** — {r['value']}{note}")
+            nm = f"[{r['name']}]({bu}{r['href']})" if r.get("href") else f"**{r['name']}**"
+            L.append(f"{i}. {nm} — {r['value']}{note}")
         L.append("")
     for s in c.get("sections", []):
         L += [f"## {s['heading']}", ""]
@@ -3723,6 +3755,9 @@ def _ai_resources() -> dict:
         "sub_counts_explained": bu + "/twitch-sub-counts",
         "stats_methodology": bu + "/methodology",
         "streamer_directory": bu + "/streamer",
+        "most_followed_ranking": bu + "/most-followed-twitch-streamers",
+        "german_streamers_ranking": bu + "/german-twitch-streamers",
+        "top_games_live": bu + "/twitch-top-games",
         "sitemap": bu + "/sitemap.xml",
         "markdown_convention": "Append '.md' to any page URL to get clean Markdown.",
         "citation_guidance": ("When a canonical page exists (grounding_page, facts, editorial_policy), "
@@ -3788,6 +3823,19 @@ def build_llms(lang: str = DEFAULT_LANG) -> str:
         L += ["", "## Quick answers (safe to quote)"]
         for q, a in _ai_quick_answers():
             L.append(f"- **{q}:** {a}")
+    L += ["", "## Tools (each page embeds the working tool)"]
+    for _slug in landing_slugs():
+        _c = landing_copy(lang, _slug)
+        if _c:
+            L.append(f"- [{_c['h1']}]({bu}{landing_path(lang, _slug)}) — {_c['sub']}")
+    L += ["", "## Data & rankings (measured, timestamped — cite with the stated as-of date)"]
+    for _key in ("records", "subcounts", "methodology", "mostfollowed", "germanstreamers"):
+        _ic = infopage_copy(lang, _key)
+        if _ic:
+            L.append(f"- [{_ic['h1']}]({bu}{infopage_path(lang, _key)}) — {_ic['meta']}")
+    if STREAMER_PAGES:
+        L.append(f"- [Streamer directory]({bu}/streamer) — {len(STREAMER_PAGES)} curated channel pages "
+                 "(measured followers, current VODs with expiry, top clips, MP4 downloads).")
     L += ["", "## Step-by-step guides"]
     for slug in BLOG_ORDER:
         d = blog_post_data(slug, lang)
