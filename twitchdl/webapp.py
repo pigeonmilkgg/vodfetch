@@ -498,7 +498,7 @@ def _tool_card_html(t: dict, lang: str) -> str:
 FAQ_HUB_POSTS = {
     "is-twitch-downloader-safe", "twitch-downloader-not-working",
     "how-to-use-a-twitch-downloader", "twitch-downloader-extension-vs-browser-tool",
-    "best-twitch-downloader",
+    "best-twitch-downloader", "how-to-get-twitch-transcript",
 }
 
 
@@ -2429,6 +2429,7 @@ BLOG_TO_LANDING = {
     "twitch-downloader-extension-vs-browser-tool": "twitch-video-downloader",
     "how-to-use-a-twitch-downloader": "twitch-video-downloader",
     "download-twitch-vods-on-mac-and-windows": "twitch-downloader-mac",
+    "how-to-get-twitch-transcript": "twitch-chat-downloader",
 }
 LANDING_TO_BLOGS = {
     "twitch-clip-downloader": ["download-twitch-clips-no-watermark", "download-twitch-clips-for-tiktok-youtube-shorts"],
@@ -2436,10 +2437,11 @@ LANDING_TO_BLOGS = {
     "twitch-video-downloader": ["how-to-use-a-twitch-downloader", "is-twitch-downloader-safe", "twitch-downloader-extension-vs-browser-tool"],
     "twitch-stream-downloader": ["record-twitch-live-stream", "obs-vs-twitch-downloader"],
     "twitch-downloader-mac": ["download-twitch-vods-on-mac-and-windows", "how-to-use-a-twitch-downloader"],
-    "twitch-to-mp3": ["extract-audio-from-twitch-vod-mp3"],
+    "twitch-to-mp3": ["extract-audio-from-twitch-vod-mp3", "how-to-get-twitch-transcript"],
     "twitch-clip-to-gif": ["download-twitch-clips-for-tiktok-youtube-shorts", "download-twitch-highlights"],
-    "twitch-chat-downloader": ["download-twitch-vod-with-chat"],
+    "twitch-chat-downloader": ["download-twitch-vod-with-chat", "how-to-get-twitch-transcript"],
     "twitch-channel-downloader": ["download-entire-twitch-channel", "download-twitch-vod-before-deleted"],
+    "twitch-converter": ["convert-twitch-vod-to-mp4", "extract-audio-from-twitch-vod-mp3", "download-twitch-clips-for-tiktok-youtube-shorts"],
 }
 
 
@@ -3183,6 +3185,10 @@ def _ai_quick_answers() -> list:
          "Paste the channel URL while the streamer is live and start recording; it captures to MP4 until the broadcast ends or you stop it."),
         ("How to download a whole Twitch channel",
          "Open the channel's Videos tab and download each past broadcast's VOD URL one by one to archive the channel."),
+        ("Does Twitch have a transcript or subtitles",
+         "Twitch has no built-in transcript or subtitle export for VODs. You can get a chat transcript by downloading the chat replay as text (vodfetch does this), and a spoken transcript by saving the VOD's audio as MP3 and running it through a speech-to-text tool such as open-source Whisper."),
+        ("Twitch converter to MP4 or MP3",
+         "vodfetch works as a free Twitch converter: paste a VOD, clip or live URL and it converts Twitch's stream into a standard MP4, or extracts the audio as MP3 — in the browser, no re-upload, no watermark and no account."),
         ("Best Twitch download quality",
          "Source / 1080p60 when available; also 720p60, 720p, 480p, 360p, 160p and audio-only."),
         ("How long Twitch VODs last",
