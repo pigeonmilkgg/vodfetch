@@ -747,7 +747,8 @@ def render_blog_index(lang: str) -> str:
         {"@type": "ListItem", "position": 2, "name": t["nav_blog"], "item": canonical},
     ]}
 
-    head = _head(lang, title=f'{t["blog_h1"]} | Twitch Downloader',
+    # blog_h1 already contains the brand ("Twitch Downloader Blog …"); no redundant suffix.
+    head = _head(lang, title=t["blog_h1"],
                  description=t["blog_sub"], keywords=t["meta_keywords"], canonical=canonical,
                  alt_pairs=_blog_index_alt_pairs(),
                  jsonld=_jsonld_tags([_org_node(t), _logo_node(), _website_node(),
@@ -2135,7 +2136,7 @@ def render_compare_index(lang: str) -> str:
         {"@type": "ListItem", "position": 1, "name": BRAND, "item": bu + lang_path(lang)},
         {"@type": "ListItem", "position": 2, "name": t.get("nav_compare", "Comparisons"), "item": canonical}]}
     jsonld = _jsonld_tags([_org_node(t), _logo_node(), _website_node(), coll, itemlist, crumbs])
-    head = _head(lang, title=f'{L["ui"]["index_h1"]} | Twitch Downloader', description=L["ui"]["index_sub"],
+    head = _head(lang, title=L["ui"]["index_h1"], description=L["ui"]["index_sub"],
                  keywords=t["meta_keywords"], canonical=canonical, alt_pairs=_compare_index_alt_pairs(),
                  jsonld=jsonld, og_type="website", md_href=md_href_for(compare_index_path(lang)))
     body = f"""{_topbar(t, lang, blog=True)}
@@ -2633,6 +2634,7 @@ def _infopage_related(lang: str, key: str) -> list:
             links.append((compare_labels(lang)["ui"]["index_h1"], compare_index_path(lang)))
     else:
         links.append(("llms.txt", "/llms.txt"))
+        links.append(("Dear AI", "/dear-ai"))  # gives the machine-facing letter an in-content inbound link
         links.append((get_strings(lang)["nav_about"], about_path(lang)))
     return links
 
