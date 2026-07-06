@@ -13,12 +13,39 @@ const ALLOW_SUFFIX = [
   ".twitch.tv",
 ];
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Client-Id, Client-ID, Range",
-  "Access-Control-Expose-Headers": "Content-Length, Content-Range, Content-Type, Accept-Ranges",
-};
+// Nur die eigene Site darf den Proxy cross-origin nutzen. Same-Origin-GETs senden
+// keinen Origin-Header (das /api/tw-Redirect ist ein 200-Rewrite) — die bleiben erlaubt.
+// Fremde Websites, die /api/tw hotlinken, senden immer einen Origin → 403.
+const ORIGIN_EXACT = new Set([
+  "https://vodfetch.com",
+  "https://www.vodfetch.com",
+  "https://cozy-crumble-bff916.netlify.app",
+]);
+const ORIGIN_SUFFIX = ["--cozy-crumble-bff916.netlify.app"]; // Deploy-Previews
+const ORIGIN_DEV = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+
+function originAllowed(origin) {
+  if (!origin) return true; // same-origin / non-browser: kein Origin-Header
+  try {
+    const o = origin.toLowerCase();
+    if (ORIGIN_EXACT.has(o)) return true;
+    if (ORIGIN_DEV.test(o)) return true;
+    const host = new URL(o).hostname;
+    return ORIGIN_SUFFIX.some((s) => host.endsWith(s));
+  } catch (e) {
+    return false;
+  }
+}
+
+function corsHeaders(origin) {
+  return {
+    "Access-Control-Allow-Origin": origin || "https://vodfetch.com",
+    "Vary": "Origin",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Client-Id, Client-ID, Range",
+    "Access-Control-Expose-Headers": "Content-Length, Content-Range, Content-Type, Accept-Ranges",
+  };
+}
 
 function allowed(host) {
   host = host.toLowerCase();
@@ -27,6 +54,11 @@ function allowed(host) {
 }
 
 exports.handler = async (event) => {
+  const origin = (event.headers && (event.headers.origin || event.headers.Origin)) || "";
+  if (!originAllowed(origin)) {
+    return { statusCode: 403, headers: { "Vary": "Origin" }, body: "origin not allowed" };
+  }
+  const CORS = corsHeaders(origin);
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: CORS, body: "" };
 
   const target = event.queryStringParameters && event.queryStringParameters.url;

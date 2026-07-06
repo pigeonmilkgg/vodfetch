@@ -1,4 +1,7 @@
 .venv/
+.env
+.env.*
+!.env.example
 __pycache__/
 *.pyc
 .twitchdl-cache/
@@ -7,5 +10,6 @@ __pycache__/
 *.zip
 dist/
 node_modules/
+.netlify/
 .DS_Store
 .pytest_cache/

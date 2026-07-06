@@ -1,0 +1,53 @@
+# History-Flywheel (TRACKER_DOMINATION_PLAN T0.4):
+# 2x täglich ein Helix-Snapshot (offizielle API) → data/snapshots/YYYY-MM-DD.json.
+# BEWUSST von Deploys entkoppelt — keine Seite konsumiert diese Daten bisher.
+#
+# Einrichtung (einmalig): Repo-Secrets TWITCH_HELIX_CLIENT_ID + TWITCH_HELIX_CLIENT_SECRET
+# anlegen (Settings → Secrets and variables → Actions). Ohne Secrets läuft der Job
+# als sauberer SKIP (grün), damit nichts rot spammt.
+#
+# Hinweis: GitHub deaktiviert Cron-Workflows nach 60 Tagen ohne Repo-Aktivität.
+# Die täglichen Bot-Commits halten das Repo aktiv, sobald die Secrets gesetzt sind.
+name: collect-stats
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+    - cron: "23 17 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-stats
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Collect Helix snapshot
+        env:
+          TWITCH_HELIX_CLIENT_ID: ${{ secrets.TWITCH_HELIX_CLIENT_ID }}
+          TWITCH_HELIX_CLIENT_SECRET: ${{ secrets.TWITCH_HELIX_CLIENT_SECRET }}
+        run: python scripts/collect_snapshot.py
+
+      - name: Commit snapshot
+        run: |
+          git config user.name "vodfetch-stats-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then
+            echo "Keine Änderungen (vermutlich SKIP ohne Secrets)."
+          else
+            git commit -m "data: Helix-Snapshot $(date -u +%F)"
+            git pull --rebase origin main
+            git push
+          fi
