@@ -2390,11 +2390,13 @@ BLOG_TO_LANDING = {
     "download-twitch-vod-with-chat": "twitch-chat-downloader",
     "download-twitch-vod-1080p60": "twitch-vod-downloader",
     "best-twitch-downloader": "twitch-vod-downloader",
+    "twitch-vod-vs-youtube": "twitch-vod-downloader",
+    "turn-twitch-vods-into-youtube-videos": "twitch-video-downloader",
 }
 LANDING_TO_BLOGS = {
     "twitch-clip-downloader": ["download-twitch-clips-no-watermark", "download-twitch-clips-for-tiktok-youtube-shorts"],
-    "twitch-vod-downloader": ["convert-twitch-vod-to-mp4", "download-twitch-vod-1080p60", "best-twitch-downloader"],
-    "twitch-video-downloader": ["download-twitch-vods-on-iphone-android", "download-twitch-vods-on-mac-and-windows"],
+    "twitch-vod-downloader": ["twitch-vod-vs-youtube", "download-twitch-vod-before-deleted", "best-twitch-downloader"],
+    "twitch-video-downloader": ["turn-twitch-vods-into-youtube-videos", "download-twitch-vods-on-iphone-android"],
     "twitch-stream-downloader": ["record-twitch-live-stream"],
     "twitch-to-mp3": ["extract-audio-from-twitch-vod-mp3"],
     "twitch-clip-to-gif": ["download-twitch-clips-for-tiktok-youtube-shorts", "download-twitch-highlights"],
