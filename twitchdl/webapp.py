@@ -493,6 +493,23 @@ def _tool_card_html(t: dict, lang: str) -> str:
     </div>"""
 
 
+# Blog posts that most closely map to the AEO FAQ hub — they get an in-content link to it
+# (reinforces the hub's topical authority for AI citation without diluting the prose).
+FAQ_HUB_POSTS = {
+    "is-twitch-downloader-safe", "twitch-downloader-not-working",
+    "how-to-use-a-twitch-downloader", "twitch-downloader-extension-vs-browser-tool",
+    "best-twitch-downloader",
+}
+
+
+def _faqhub_cta_html(t: dict, lang: str) -> str:
+    """Contextual in-content link to the AEO FAQ hub (used on home + relevant blog posts)."""
+    if not aifaq_available():
+        return ""
+    return (f'<p class="toolcta"><a href="{esc(aifaq_path(lang))}"><b>'
+            f'{esc(t.get("faq_hub_cta", "See the full Twitch downloader FAQ"))}</b></a></p>\n')
+
+
 def _minitool_html(lang: str) -> str:
     """Zero-JS Instant-Download-Box für Content-Seiten: Twitch-Link → leitet zum Tool (auto-analyze)."""
     t = get_strings(lang)
@@ -611,7 +628,7 @@ def build_body(t: dict, lang: str) -> str:
   <section id="faq" class="block">
     <h2>{esc(t["faq_h2"])}</h2>
     <div class="faqs">{faqs}</div>
-  </section>
+{_faqhub_cta_html(t, lang)}  </section>
 {paa_section}{guides_section}{askai_section}
   <p class="disclaimer">{esc(t["disclaimer"])}</p>
 </main>
@@ -855,6 +872,7 @@ def render_blog_post(lang: str, slug: str) -> "str | None":
     _lc = landing_copy(lang, _lslug) if _lslug else None
     tool_cta = (f'<p class="toolcta">{esc(t.get("tool_cta_pre", "Ready to download? Use the free"))} '
                 f'<a href="{esc(landing_path(lang, _lslug))}"><b>{esc(_lc["h1"])}</b></a>.</p>') if _lc else ""
+    faqhub_cta = _faqhub_cta_html(t, lang) if slug in FAQ_HUB_POSTS else ""
 
     body = f"""{_topbar(t, lang, blog=True)}
 <main>
@@ -869,6 +887,7 @@ def render_blog_post(lang: str, slug: str) -> "str | None":
     {steps_block}
     {faq_block}
     {tool_cta}
+    {faqhub_cta}
     <div class="cta">
       <h2>{esc(t["blog_cta_h"])}</h2>
       <p>{esc(t["blog_cta_p"])}</p>
@@ -2255,7 +2274,9 @@ def render_alternative_index(lang: str) -> str:
         {"@type": "ListItem", "position": 1, "name": BRAND, "item": bu + lang_path(lang)},
         {"@type": "ListItem", "position": 2, "name": t.get("nav_alternatives", "Alternatives"), "item": canonical}]}
     jsonld = _jsonld_tags([_org_node(t), _logo_node(), _website_node(), coll, itemlist, crumbs])
-    head = _head(lang, title=f'{a0["index_h1"]} | Twitch Downloader', description=a0["index_sub"],
+    # index_h1 already conveys the topic + brand context; drop the redundant " | Twitch Downloader"
+    # suffix so the title stays <=60 chars (no SERP truncation). Zero translation cost.
+    head = _head(lang, title=a0["index_h1"], description=a0["index_sub"],
                  keywords=t["meta_keywords"], canonical=canonical, alt_pairs=_alt_index_alt_pairs(),
                  jsonld=jsonld, og_type="website", md_href=md_href_for(alternatives_index_path(lang)))
     body = f"""{_topbar(t, lang, blog=True)}
