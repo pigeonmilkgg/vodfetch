@@ -100,6 +100,10 @@ EN = {
     "cb_p_month": "This month",
     "cb_p_all": "All time",
     "cb_no_clips": "No clips in this period.",
+    "tg_refresh": "Refresh",
+    "tg_game": "Game / category",
+    "tg_viewers": "Viewers right now",
+    "tg_stamp": "Live from Twitch's public API — as of {time}.",
     "blog_byline": "Written by the vodfetch founder",
     "meta_title": "Twitch Downloader — Free VOD, Clip & Live Downloads to MP4",
     "meta_description": (
@@ -348,6 +352,10 @@ DE = {
     "cb_p_month": "Dieser Monat",
     "cb_p_all": "Gesamt",
     "cb_no_clips": "Keine Clips in diesem Zeitraum.",
+    "tg_refresh": "Aktualisieren",
+    "tg_game": "Spiel / Kategorie",
+    "tg_viewers": "Zuschauer jetzt",
+    "tg_stamp": "Live aus der öffentlichen Twitch-API — Stand {time}.",
     "blog_byline": "Geschrieben vom vodfetch-Gründer",
     "meta_title": "Twitch Downloader — VODs, Clips & Live gratis als MP4 laden",
     "meta_description": (

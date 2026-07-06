@@ -1,118 +1,465 @@
 {
   "_comment": "Kuratiertes Kanal-Roster für den Helix-Snapshot-Collector (scripts/collect_snapshot.py). Auswahl nach Archiv-/VOD-/Clip-Suchintention aus den Keyword-Exports (TRACKER_DOMINATION_PLAN §1B) + Reichweite je Sprache. Frei editierbar — nicht auflösbare Logins werden im Lauf als WARNUNG gelistet und übersprungen.",
   "channels": [
-    {"login": "xqc", "lang": "en"},
-    {"login": "kaicenat", "lang": "en"},
-    {"login": "hasanabi", "lang": "en"},
-    {"login": "shroud", "lang": "en"},
-    {"login": "ninja", "lang": "en"},
-    {"login": "pokimane", "lang": "en"},
-    {"login": "sodapoppin", "lang": "en"},
-    {"login": "summit1g", "lang": "en"},
-    {"login": "asmongold", "lang": "en"},
-    {"login": "zackrawrr", "lang": "en"},
-    {"login": "mizkif", "lang": "en"},
-    {"login": "moistcr1tikal", "lang": "en"},
-    {"login": "jynxzi", "lang": "en"},
-    {"login": "caedrel", "lang": "en"},
-    {"login": "cinna", "lang": "en"},
-    {"login": "jerma985", "lang": "en"},
-    {"login": "paymoneywubby", "lang": "en"},
-    {"login": "lacari", "lang": "en"},
-    {"login": "caseoh_", "lang": "en"},
-    {"login": "tarik", "lang": "en"},
-    {"login": "clix", "lang": "en"},
-    {"login": "lirik", "lang": "en"},
-    {"login": "cohhcarnage", "lang": "en"},
-    {"login": "emiru", "lang": "en"},
-    {"login": "extraemily", "lang": "en"},
-    {"login": "qtcinderella", "lang": "en"},
-    {"login": "willneff", "lang": "en"},
-    {"login": "erobb221", "lang": "en"},
-    {"login": "nmplol", "lang": "en"},
-    {"login": "esfandtv", "lang": "en"},
-    {"login": "ironmouse", "lang": "en"},
-    {"login": "shylily", "lang": "en"},
-    {"login": "filian", "lang": "en"},
-    {"login": "vedal987", "lang": "en"},
-    {"login": "forsen", "lang": "en"},
-    {"login": "loltyler1", "lang": "en"},
-    {"login": "timthetatman", "lang": "en"},
-    {"login": "nickeh30", "lang": "en"},
-    {"login": "kyedae", "lang": "en"},
-    {"login": "stableronaldo", "lang": "en"},
-    {"login": "plaqueboymax", "lang": "en"},
-    {"login": "agent00", "lang": "en"},
-    {"login": "dantes", "lang": "en"},
-    {"login": "angryginge13", "lang": "en"},
-    {"login": "realkatieb", "lang": "en"},
-    {"login": "piratesoftware", "lang": "en"},
-    {"login": "northernlion", "lang": "en"},
-    {"login": "cdawgva", "lang": "en"},
-    {"login": "moonmoon", "lang": "en"},
-    {"login": "aceu", "lang": "en"},
-    {"login": "gronkh", "lang": "de"},
-    {"login": "papaplatte", "lang": "de"},
-    {"login": "trymacs", "lang": "de"},
-    {"login": "montanablack88", "lang": "de"},
-    {"login": "eliasn97", "lang": "de"},
-    {"login": "staiy", "lang": "de"},
-    {"login": "handofblood", "lang": "de"},
-    {"login": "knossi", "lang": "de"},
-    {"login": "dhalucard", "lang": "de"},
-    {"login": "bonjwa", "lang": "de"},
-    {"login": "rocketbeanstv", "lang": "de"},
-    {"login": "unsympathisch_tv", "lang": "de"},
-    {"login": "mckytv", "lang": "de"},
-    {"login": "rumathra", "lang": "de"},
-    {"login": "reved", "lang": "de"},
-    {"login": "gnu", "lang": "de"},
-    {"login": "mahluna", "lang": "de"},
-    {"login": "broeki", "lang": "de"},
-    {"login": "tolkin", "lang": "de"},
-    {"login": "noway4u_sir", "lang": "de"},
-    {"login": "agurin", "lang": "de"},
-    {"login": "letshugotv", "lang": "de"},
-    {"login": "fritzmeinecke", "lang": "de"},
-    {"login": "shurjoka", "lang": "de"},
-    {"login": "trilluxe", "lang": "de"},
-    {"login": "kamet0", "lang": "fr"},
-    {"login": "gotaga", "lang": "fr"},
-    {"login": "domingo", "lang": "fr"},
-    {"login": "zerator", "lang": "fr"},
-    {"login": "ponce", "lang": "fr"},
-    {"login": "etoiles", "lang": "fr"},
-    {"login": "mistermv", "lang": "fr"},
-    {"login": "antoinedaniel", "lang": "fr"},
-    {"login": "locklear", "lang": "fr"},
-    {"login": "sardoche", "lang": "fr"},
-    {"login": "squeezielive", "lang": "fr"},
-    {"login": "rebeudeter", "lang": "fr"},
-    {"login": "kennystream", "lang": "fr"},
-    {"login": "chowh1", "lang": "fr"},
-    {"login": "aminematue", "lang": "fr"},
-    {"login": "doigby", "lang": "fr"},
-    {"login": "maghla", "lang": "fr"},
-    {"login": "ibai", "lang": "es"},
-    {"login": "auronplay", "lang": "es"},
-    {"login": "rubius", "lang": "es"},
-    {"login": "thegrefg", "lang": "es"},
-    {"login": "illojuan", "lang": "es"},
-    {"login": "elxokas", "lang": "es"},
-    {"login": "knekro", "lang": "es"},
-    {"login": "elspreen", "lang": "es"},
-    {"login": "coscu", "lang": "es"},
-    {"login": "mixwell", "lang": "es"},
-    {"login": "karchez", "lang": "es"},
-    {"login": "folagorlives", "lang": "es"},
-    {"login": "biyin_", "lang": "es"},
-    {"login": "ampeterby7", "lang": "es"},
-    {"login": "arigameplays", "lang": "es"},
-    {"login": "juansguarnizo", "lang": "es"},
-    {"login": "quackity", "lang": "es"},
-    {"login": "elmariana", "lang": "es"},
-    {"login": "perxitaa", "lang": "es"},
-    {"login": "zeling", "lang": "es"},
-    {"login": "alexby11", "lang": "es"}
+    {
+      "login": "xqc",
+      "lang": "en"
+    },
+    {
+      "login": "kaicenat",
+      "lang": "en"
+    },
+    {
+      "login": "hasanabi",
+      "lang": "en"
+    },
+    {
+      "login": "shroud",
+      "lang": "en"
+    },
+    {
+      "login": "ninja",
+      "lang": "en"
+    },
+    {
+      "login": "pokimane",
+      "lang": "en"
+    },
+    {
+      "login": "sodapoppin",
+      "lang": "en"
+    },
+    {
+      "login": "summit1g",
+      "lang": "en"
+    },
+    {
+      "login": "asmongold",
+      "lang": "en"
+    },
+    {
+      "login": "zackrawrr",
+      "lang": "en"
+    },
+    {
+      "login": "mizkif",
+      "lang": "en"
+    },
+    {
+      "login": "moistcr1tikal",
+      "lang": "en"
+    },
+    {
+      "login": "jynxzi",
+      "lang": "en"
+    },
+    {
+      "login": "caedrel",
+      "lang": "en"
+    },
+    {
+      "login": "cinna",
+      "lang": "en"
+    },
+    {
+      "login": "jerma985",
+      "lang": "en"
+    },
+    {
+      "login": "paymoneywubby",
+      "lang": "en"
+    },
+    {
+      "login": "lacari",
+      "lang": "en"
+    },
+    {
+      "login": "caseoh_",
+      "lang": "en"
+    },
+    {
+      "login": "tarik",
+      "lang": "en"
+    },
+    {
+      "login": "clix",
+      "lang": "en"
+    },
+    {
+      "login": "lirik",
+      "lang": "en"
+    },
+    {
+      "login": "cohhcarnage",
+      "lang": "en"
+    },
+    {
+      "login": "emiru",
+      "lang": "en"
+    },
+    {
+      "login": "extraemily",
+      "lang": "en"
+    },
+    {
+      "login": "qtcinderella",
+      "lang": "en"
+    },
+    {
+      "login": "willneff",
+      "lang": "en"
+    },
+    {
+      "login": "erobb221",
+      "lang": "en"
+    },
+    {
+      "login": "nmplol",
+      "lang": "en"
+    },
+    {
+      "login": "esfandtv",
+      "lang": "en"
+    },
+    {
+      "login": "ironmouse",
+      "lang": "en"
+    },
+    {
+      "login": "shylily",
+      "lang": "en"
+    },
+    {
+      "login": "filian",
+      "lang": "en"
+    },
+    {
+      "login": "vedal987",
+      "lang": "en"
+    },
+    {
+      "login": "forsen",
+      "lang": "en"
+    },
+    {
+      "login": "loltyler1",
+      "lang": "en"
+    },
+    {
+      "login": "timthetatman",
+      "lang": "en"
+    },
+    {
+      "login": "nickeh30",
+      "lang": "en"
+    },
+    {
+      "login": "kyedae",
+      "lang": "en"
+    },
+    {
+      "login": "stableronaldo",
+      "lang": "en"
+    },
+    {
+      "login": "plaqueboymax",
+      "lang": "en"
+    },
+    {
+      "login": "agent00",
+      "lang": "en"
+    },
+    {
+      "login": "dantes",
+      "lang": "en"
+    },
+    {
+      "login": "angryginge13",
+      "lang": "en"
+    },
+    {
+      "login": "realkatieb",
+      "lang": "en"
+    },
+    {
+      "login": "piratesoftware",
+      "lang": "en"
+    },
+    {
+      "login": "northernlion",
+      "lang": "en"
+    },
+    {
+      "login": "cdawgva",
+      "lang": "en"
+    },
+    {
+      "login": "moonmoon",
+      "lang": "en"
+    },
+    {
+      "login": "aceu",
+      "lang": "en"
+    },
+    {
+      "login": "gronkh",
+      "lang": "de"
+    },
+    {
+      "login": "papaplatte",
+      "lang": "de"
+    },
+    {
+      "login": "trymacs",
+      "lang": "de"
+    },
+    {
+      "login": "montanablack88",
+      "lang": "de"
+    },
+    {
+      "login": "eliasn97",
+      "lang": "de"
+    },
+    {
+      "login": "staiy",
+      "lang": "de"
+    },
+    {
+      "login": "handofblood",
+      "lang": "de"
+    },
+    {
+      "login": "therealknossi",
+      "lang": "de"
+    },
+    {
+      "login": "dhalucard",
+      "lang": "de"
+    },
+    {
+      "login": "bonjwa",
+      "lang": "de"
+    },
+    {
+      "login": "rocketbeanstv",
+      "lang": "de"
+    },
+    {
+      "login": "mckytv",
+      "lang": "de"
+    },
+    {
+      "login": "rumathra",
+      "lang": "de"
+    },
+    {
+      "login": "revedtv",
+      "lang": "de"
+    },
+    {
+      "login": "mahluna",
+      "lang": "de"
+    },
+    {
+      "login": "broeki",
+      "lang": "de"
+    },
+    {
+      "login": "tolkin",
+      "lang": "de"
+    },
+    {
+      "login": "noway4u_sir",
+      "lang": "de"
+    },
+    {
+      "login": "agurin",
+      "lang": "de"
+    },
+    {
+      "login": "letshugotv",
+      "lang": "de"
+    },
+    {
+      "login": "fritz_meinecke",
+      "lang": "de"
+    },
+    {
+      "login": "shurjoka",
+      "lang": "de"
+    },
+    {
+      "login": "trilluxe",
+      "lang": "de"
+    },
+    {
+      "login": "kamet0",
+      "lang": "fr"
+    },
+    {
+      "login": "gotaga",
+      "lang": "fr"
+    },
+    {
+      "login": "domingo",
+      "lang": "fr"
+    },
+    {
+      "login": "zerator",
+      "lang": "fr"
+    },
+    {
+      "login": "ponce",
+      "lang": "fr"
+    },
+    {
+      "login": "etoiles",
+      "lang": "fr"
+    },
+    {
+      "login": "mistermv",
+      "lang": "fr"
+    },
+    {
+      "login": "antoinedaniel",
+      "lang": "fr"
+    },
+    {
+      "login": "locklear",
+      "lang": "fr"
+    },
+    {
+      "login": "sardoche",
+      "lang": "fr"
+    },
+    {
+      "login": "squeezielive",
+      "lang": "fr"
+    },
+    {
+      "login": "rebeudeter",
+      "lang": "fr"
+    },
+    {
+      "login": "kennystream",
+      "lang": "fr"
+    },
+    {
+      "login": "chowh1",
+      "lang": "fr"
+    },
+    {
+      "login": "aminematue",
+      "lang": "fr"
+    },
+    {
+      "login": "doigby",
+      "lang": "fr"
+    },
+    {
+      "login": "maghla",
+      "lang": "fr"
+    },
+    {
+      "login": "ibai",
+      "lang": "es"
+    },
+    {
+      "login": "auronplay",
+      "lang": "es"
+    },
+    {
+      "login": "rubius",
+      "lang": "es"
+    },
+    {
+      "login": "thegrefg",
+      "lang": "es"
+    },
+    {
+      "login": "illojuan",
+      "lang": "es"
+    },
+    {
+      "login": "elxokas",
+      "lang": "es"
+    },
+    {
+      "login": "knekro",
+      "lang": "es"
+    },
+    {
+      "login": "elspreen",
+      "lang": "es"
+    },
+    {
+      "login": "coscu",
+      "lang": "es"
+    },
+    {
+      "login": "mixwell",
+      "lang": "es"
+    },
+    {
+      "login": "karchez",
+      "lang": "es"
+    },
+    {
+      "login": "folagorlives",
+      "lang": "es"
+    },
+    {
+      "login": "biyin_",
+      "lang": "es"
+    },
+    {
+      "login": "ampeterby7",
+      "lang": "es"
+    },
+    {
+      "login": "arigameplays",
+      "lang": "es"
+    },
+    {
+      "login": "juansguarnizo",
+      "lang": "es"
+    },
+    {
+      "login": "quackity",
+      "lang": "es"
+    },
+    {
+      "login": "elmariana",
+      "lang": "es"
+    },
+    {
+      "login": "perxitaa",
+      "lang": "es"
+    },
+    {
+      "login": "zeling",
+      "lang": "es"
+    },
+    {
+      "login": "alexby11",
+      "lang": "es"
+    },
+    {
+      "login": "zarbex",
+      "lang": "de"
+    },
+    {
+      "login": "rewinside",
+      "lang": "de"
+    },
+    {
+      "login": "amar",
+      "lang": "de"
+    },
+    {
+      "login": "julien",
+      "lang": "de"
+    }
   ]
 }

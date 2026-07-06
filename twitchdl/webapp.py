@@ -510,6 +510,17 @@ def _checker_card_html(t: dict, lang: str) -> str:
     </div>"""
 
 
+def _topgames_card_html(t: dict, lang: str) -> str:
+    """Top-Games-Live-Karte (Landing kind='topgames') — lädt beim Seitenaufruf client-seitig."""
+    return f"""    <div class="tool" id="tool">
+      <div class="tghead"><span id="tgStamp" class="cbnote" aria-live="polite"></span>
+        <button class="ghost" type="button" onclick="loadTopGames()">{esc(t.get("tg_refresh", "Refresh"))}</button></div>
+      <table class="tgtable"><thead><tr><th>#</th><th>{esc(t.get("tg_game", "Game / category"))}</th>
+        <th>{esc(t.get("tg_viewers", "Viewers right now"))}</th></tr></thead>
+        <tbody id="tgBody"><tr><td colspan="3">{esc(t.get("un_checking", "Loading…"))}</td></tr></tbody></table>
+    </div>"""
+
+
 def _follower_card_html(t: dict, lang: str) -> str:
     """Follower-Count-Karte (Landing kind='follower') — exakte Live-Zahl mit Zeitstempel."""
     home = lang_path(lang) or "/"
@@ -710,6 +721,7 @@ def _document(lang: str, head_inner: str, body_inner: str, tool_js: bool = False
             "cbPMonth": t.get("cb_p_month", "This month"),
             "cbPAll": t.get("cb_p_all", "All time"),
             "cbNoClips": t.get("cb_no_clips", "No clips in this period."),
+            "tgStamp": t.get("tg_stamp", "Live from Twitch's public API — as of {time}."),
         }, ensure_ascii=False).replace("<", "\\u003c")
         flag = "window.TWITCHDL_HOSTED=false;" if STATIC_MODE else ""
         # mux.js + gifenc werden on-demand geladen (siehe ensureMux/ensureGifenc) — spart ~137 KB Initial-Load
@@ -965,6 +977,18 @@ CSS = r"""
 .unbadge.live{background:#e91916;border-color:#e91916;color:#fff}
 .fcbig{font-size:19px;font-weight:600;line-height:1.45}
 .cbseg{margin:0 0 10px}
+.ranklist{list-style:none;counter-reset:rk;margin:18px 0;padding:0}
+.ranklist li{counter-increment:rk;display:flex;gap:12px;align-items:baseline;padding:9px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.ranklist li::before{content:counter(rk);font-weight:700;color:var(--purple);min-width:26px}
+.rl-name{font-weight:600}
+.rl-val{margin-left:auto;font-variant-numeric:tabular-nums}
+.rl-note{flex-basis:100%;color:var(--muted);font-size:13px;padding-left:38px}
+.tghead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.tgtable{width:100%;border-collapse:collapse;margin-top:6px}
+.tgtable th{text-align:left;font-size:13px;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--border)}
+.tgtable td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
+.tgtable td img{width:26px;height:34px;border-radius:4px;margin-right:8px;vertical-align:middle}
+.tgtable td:last-child,.tgtable th:last-child{text-align:right;font-variant-numeric:tabular-nums}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
@@ -1683,6 +1707,18 @@ async function cbClips(period){if(!cbLogin)return;var seg=G('cbPeriodSeg');if(se
     if(grid)grid.innerHTML=clips.length?clips.map(function(e){return cbCard(e.node,'clip',null)}).join(''):'<p class="cbnote">'+eh(I18N.cbNoClips||'No clips in this period.')+'</p>';
   }catch(e){if(grid)grid.innerHTML='<p class="cbnote">'+eh(I18N.unError||'Could not reach Twitch.')+'</p>'}
 }
+async function loadTopGames(){var b=G('tgBody');if(!b)return;
+  b.innerHTML='<tr><td colspan="3">'+eh(I18N.unChecking||'Loading…')+'</td></tr>';
+  try{
+    var d=await gqlStats({query:'query{games(first:30,options:{sort:VIEWER_COUNT}){edges{node{id name viewersCount boxArtURL}}}}'});
+    var g=(d&&d.data&&d.data.games&&d.data.games.edges)||[];
+    if(!g.length)throw new Error('empty');
+    b.innerHTML=g.map(function(e,i){var n=e.node;var art=(n.boxArtURL||'').replace('{width}','40').replace('{height}','53');
+      return '<tr><td>'+(i+1)+'</td><td>'+(art?'<img src="'+eh(art)+'" alt="" loading="lazy" referrerpolicy="no-referrer">':'')+'<span>'+eh(n.name||'—')+'</span></td><td>'+((+n.viewersCount||0)).toLocaleString()+'</td></tr>'}).join('');
+    var s=G('tgStamp');if(s)s.textContent=(I18N.tgStamp||"Live from Twitch's public API — as of {time}.").replace('{time}',new Date().toLocaleTimeString());
+  }catch(e){b.innerHTML='<tr><td colspan="3">'+eh(I18N.unError||'Could not reach Twitch.')+'</td></tr>'}
+}
+if(G('tgBody')){loadTopGames()}
 async function checkFollowers(){
   var inp=G('fcInput'),box=G('fcResult');if(!inp||!box)return;
   var name=(inp.value||'').trim().replace(/^@/,'').toLowerCase();
@@ -2566,6 +2602,7 @@ BLOG_TO_LANDING = {
     "how-to-become-twitch-partner": "twitch-vod-downloader",
     "how-to-raid-on-twitch": "twitch-stream-downloader",
     "twitch-recap-how-to-see-and-save": "twitch-clip-downloader",
+    "streamer-communities-twitch-teams": "twitch-stream-downloader",
 }
 LANDING_TO_BLOGS = {
     "twitch-clip-downloader": ["download-twitch-clips-no-watermark", "download-twitch-clips-for-tiktok-youtube-shorts", "twitch-recap-how-to-see-and-save"],
@@ -2581,6 +2618,7 @@ LANDING_TO_BLOGS = {
     "twitch-chat-log": ["how-to-get-twitch-transcript", "download-twitch-vod-with-chat", "download-twitch-vod-before-deleted"],
     "twitch-username-checker": ["how-to-use-a-twitch-downloader", "download-entire-twitch-channel"],
     "twitch-follower-count": ["how-to-become-twitch-partner", "how-to-raid-on-twitch", "how-to-use-a-twitch-downloader"],
+    "twitch-top-games": ["streamer-communities-twitch-teams", "how-to-become-twitch-partner", "record-twitch-live-stream"],
 }
 
 
@@ -2642,9 +2680,11 @@ def render_landing(lang: str, slug: str) -> "str | None":
         tool_html = _checker_card_html(t, lang)
     elif kind == "follower":
         tool_html = _follower_card_html(t, lang)
+    elif kind == "topgames":
+        tool_html = _topgames_card_html(t, lang)
     else:
         tool_html = _tool_card_html(t, lang)
-    features_block = ("" if kind in ("checker", "follower") else
+    features_block = ("" if kind in ("checker", "follower", "topgames") else
                       f'<section id="features" class="block"><h2>{esc(t["features_h2"])}</h2><div class="features">{feature_cards}</div></section>')
     # internal links (other landing + comparisons + guides)
     links = []
@@ -2731,10 +2771,13 @@ def md_landing(lang: str, slug: str) -> "str | None":
 # --------------------------------------------------------------------------- #
 INFO_PAGE_SLUGS = {"editorial": "editorial-policy", "colophon": "how-this-site-is-built",
                    "records": "twitch-records", "subcounts": "twitch-sub-counts",
-                   "methodology": "methodology"}
-INFO_PAGE_ORDER = ["editorial", "colophon", "records", "subcounts", "methodology"]
-# Die drei Stats-Meta-Seiten verlinken sich gegenseitig (Themencluster)
-_INFOPAGE_CLUSTER = ("records", "subcounts", "methodology")
+                   "methodology": "methodology",
+                   "mostfollowed": "most-followed-twitch-streamers",
+                   "germanstreamers": "german-twitch-streamers"}
+INFO_PAGE_ORDER = ["editorial", "colophon", "records", "subcounts", "methodology",
+                   "mostfollowed", "germanstreamers"]
+# Die Stats-Meta-Seiten verlinken sich gegenseitig (Themencluster)
+_INFOPAGE_CLUSTER = ("records", "subcounts", "methodology", "mostfollowed", "germanstreamers")
 
 
 def infopage_keys() -> list:
@@ -2822,6 +2865,24 @@ def render_infopage(lang: str, key: str) -> "str | None":
         f'<h2>{esc(s["heading"])}</h2>' + "".join(f"<p>{esc(p)}</p>" for p in s.get("paragraphs", []))
         for s in c.get("sections", []))
 
+    # Optionale Rangliste (z.B. Most-Followed): sichtbare <ol> + ItemList im @graph
+    list_block = ""
+    itemlist_ld = None
+    if c.get("list"):
+        rows = "".join(
+            f'<li><span class="rl-name">{esc(r["name"])}</span>'
+            f'<span class="rl-val">{esc(r["value"])}</span>'
+            + (f'<span class="rl-note">{esc(r["note"])}</span>' if r.get("note") else "")
+            + "</li>"
+            for r in c["list"])
+        heading = f'<h2>{esc(c["list_h"])}</h2>' if c.get("list_h") else ""
+        list_block = f'{heading}<ol class="ranklist">{rows}</ol>'
+        itemlist_ld = {"@type": "ItemList", "@id": canonical + "#ranking",
+                       "name": c.get("list_h") or c["h1"], "inLanguage": hreflang,
+                       "numberOfItems": len(c["list"]),
+                       "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": r["name"]}
+                                           for i, r in enumerate(c["list"])]}
+
     # Editorial: the canonical-pages block (explicit "cite these" guidance); FAQ für jede Seite mit faqs
     canonical_block = ""
     faq_block = ""
@@ -2861,6 +2922,8 @@ def render_infopage(lang: str, key: str) -> "str | None":
         {"@type": "ListItem", "position": 1, "name": BRAND, "item": bu + lang_path(lang)},
         {"@type": "ListItem", "position": 2, "name": c["h1"], "item": canonical}]}
     blocks = [_org_node(t), _logo_node(), _website_node(), webpage_ld, crumbs]
+    if itemlist_ld:
+        blocks.append(itemlist_ld)
     if faq_ld:
         blocks.append(faq_ld)
 
@@ -2874,6 +2937,7 @@ def render_infopage(lang: str, key: str) -> "str | None":
     <nav class="crumbs"><a href="{esc(lang_path(lang))}">{esc(BRAND)}</a> › <span>{esc(c["h1"])}</span></nav>
     <h1>{esc(c["h1"])}</h1>
     <p class="answer">{esc(c["lead"])}</p>
+    {list_block}
     {secs}
     {canonical_block}
     {faq_block}
@@ -2893,6 +2957,13 @@ def md_infopage(lang: str, key: str) -> "str | None":
     bu = base_url()
     L = [f"# {c['h1']}", "", f"> {c['lead']}", "",
          f"Source: {bu}{infopage_path(lang, key)}  ·  Free to quote and cite with attribution to vodfetch.", ""]
+    if c.get("list"):
+        if c.get("list_h"):
+            L += [f"## {c['list_h']}", ""]
+        for i, r in enumerate(c["list"], 1):
+            note = f" — {r['note']}" if r.get("note") else ""
+            L.append(f"{i}. **{r['name']}** — {r['value']}{note}")
+        L.append("")
     for s in c.get("sections", []):
         L += [f"## {s['heading']}", ""]
         for p in s.get("paragraphs", []):
