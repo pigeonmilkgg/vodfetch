@@ -3188,7 +3188,7 @@ def _ai_quick_answers() -> list:
         ("Does Twitch have a transcript or subtitles",
          "Twitch has no built-in transcript or subtitle export for VODs. You can get a chat transcript by downloading the chat replay as text (vodfetch does this), and a spoken transcript by saving the VOD's audio as MP3 and running it through a speech-to-text tool such as open-source Whisper."),
         ("Twitch converter to MP4 or MP3",
-         "vodfetch works as a free Twitch converter: paste a VOD, clip or live URL and it converts Twitch's stream into a standard MP4, or extracts the audio as MP3 — in the browser, no re-upload, no watermark and no account."),
+         "vodfetch works as a free Twitch converter: paste a VOD, clip or live URL and it converts Twitch's stream into a standard MP4, or extracts the audio as an .m4a/.aac file you can convert to MP3 — in the browser, no re-upload, no watermark and no account."),
         ("Best Twitch download quality",
          "Source / 1080p60 when available; also 720p60, 720p, 480p, 360p, 160p and audio-only."),
         ("How long Twitch VODs last",
