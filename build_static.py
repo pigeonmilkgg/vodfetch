@@ -159,7 +159,8 @@ def main() -> None:
         import shutil as _sh
         for name, dest in [("og.png", "assets/og.png"), ("logo.png", "assets/logo.png"),
                            ("icon-192.png", "assets/icon-192.png"), ("icon-512.png", "assets/icon-512.png"),
-                           ("favicon-32.png", "favicon-32.png"), ("apple-touch-icon.png", "apple-touch-icon.png"),
+                           ("favicon-32.png", "favicon-32.png"), ("favicon-48.png", "favicon-48.png"),
+                           ("favicon.ico", "favicon.ico"), ("apple-touch-icon.png", "apple-touch-icon.png"),
                            ("mux.min.js", "assets/mux.min.js"), ("gifenc.js", "assets/gifenc.js"),
                            ("sw.js", "sw.js")]:
             (DIST / dest).parent.mkdir(parents=True, exist_ok=True)

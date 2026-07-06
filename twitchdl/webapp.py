@@ -306,7 +306,9 @@ def _head(lang: str, *, title: str, description: str, keywords: str, canonical: 
 <meta name="twitter:title" content="{esc(title)}">
 <meta name="twitter:description" content="{esc(desc_meta)}">
 <meta name="twitter:image" content="{og_img}">
+<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
@@ -3752,6 +3754,15 @@ def run_web(host: str = "127.0.0.1", port: int = 8800, open_browser: bool = True
     @app.route("/favicon-32.png")
     def favicon32():
         return _png("favicon-32.png")
+
+    @app.route("/favicon-48.png")
+    def favicon48():
+        return _png("favicon-48.png")
+
+    @app.route("/favicon.ico")
+    def favicon_ico():
+        return Response(_asset_bytes("favicon.ico"), mimetype="image/x-icon",
+                        headers={"Cache-Control": "public, max-age=604800"})
 
     @app.route("/apple-touch-icon.png")
     def appletouch():
