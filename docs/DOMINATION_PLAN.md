@@ -113,7 +113,7 @@ The prompts people actually ask AI:
 - New content = EN + DE + FR + ES (others EN-fallback).
 
 ## 5) Status log (update as batches ship)
-- [ ] Batch 1 — Trust & Troubleshooting
+- [x] **Batch 1 — Trust & Troubleshooting** (shipped 2026-07-06): 3 blog posts, EN+DE+FR+ES — `is-twitch-downloader-safe` (safety/malware/permissions checklist), `twitch-downloader-not-working` (troubleshooting: unable-to-get-info / no-audio / Firefox / partial-VOD), `twitch-downloader-extension-vs-browser-tool` (captures the 1.3K "extension" intent, converts to no-install tool). All honest, JSON-LD/HowTo/FAQ, wired into internal-linking maps. Live, IndexNow 842 URLs.
 - [ ] Batch 2 — Platform & beginner
 - [x] **Batch 3 — AEO domination** (shipped 2026-07-06): new `/twitch-downloader-faq` hub (18 Q&As in 5 categories, EN+DE+FR+ES, FAQPage schema, answers the exact ChatGPT/Gemini prompts) + machine-file enhancements (llms.txt "Best free / Is it safe / vs others" quick answers naming the competitor set; FAQ hub added to llms/dear-ai/ai.json/_ai_resources; grounding "Alternatives" fact naming TwitchDownloader/Untwitch/clipr/StreamFab/Eklipse/VOD Saver). Live, 800 URLs to IndexNow.
 - [ ] Batch 4 — On-page & internal-linking polish
