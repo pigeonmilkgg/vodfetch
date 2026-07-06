@@ -493,6 +493,23 @@ def _tool_card_html(t: dict, lang: str) -> str:
     </div>"""
 
 
+def _checker_card_html(t: dict, lang: str) -> str:
+    """Username-Checker-Karte (Landing kind='checker') — eigene Mini-Tool-UI statt Downloader.
+
+    Live-Abfrage läuft client-seitig direkt gegen gql.twitch.tv (CORS-offen),
+    mit Fallback auf den /api/tw-Proxy. data-home führt Treffer in den Channel-Browser."""
+    home = lang_path(lang) or "/"
+    return f"""    <div class="tool" id="tool">
+      <label for="unInput">{esc(t.get("un_label", "Twitch username"))}</label>
+      <div class="urlrow">
+        <input id="unInput" type="text" autocomplete="off" spellcheck="false" maxlength="25"
+               placeholder="{esc(t.get("un_ph", "e.g. shroud"))}" onkeydown="if(event.key==='Enter')checkUsername()">
+      </div>
+      <button class="primary" onclick="checkUsername()">{esc(t.get("un_btn", "Check username"))}</button>
+      <div class="result hidden" id="unResult" data-home="{esc(home)}" aria-live="polite"></div>
+    </div>"""
+
+
 # Blog posts that most closely map to the AEO FAQ hub — they get an in-content link to it
 # (reinforces the hub's topical authority for AI citation without diluting the prose).
 FAQ_HUB_POSTS = {
@@ -659,6 +676,17 @@ def _document(lang: str, head_inner: str, body_inner: str, tool_js: bool = False
             "cbExpLeft": t.get("cb_exp_left", "left (est.)"),
             "cbMore": t.get("cb_more", "Load more"),
             "cbNotFound": t.get("cb_not_found", "Channel not found."),
+            "unChecking": t.get("un_checking", "Checking against Twitch…"),
+            "unTakenT": t.get("un_taken_t", "This username is taken"),
+            "unTakenD": t.get("un_taken_d", "{name} exists on Twitch — the account was created on {date}."),
+            "unFreeT": t.get("un_free_t", "No channel with this name"),
+            "unFreeD": t.get("un_free_d", "No Twitch channel named “{name}” was found. The name is not in use right now — but that does not guarantee you can register it: Twitch holds back names of renamed, suspended and reserved accounts."),
+            "unLive": t.get("un_live", "live now"),
+            "unPartner": t.get("un_partner", "Partner"),
+            "unAffiliate": t.get("un_affiliate", "Affiliate"),
+            "unBrowse": t.get("un_browse", "Browse this channel's VODs & clips →"),
+            "unInvalid": t.get("un_invalid", "Usernames are 4–25 characters: letters, numbers and underscores."),
+            "unError": t.get("un_error", "Could not reach Twitch — please try again in a moment."),
         }, ensure_ascii=False).replace("<", "\\u003c")
         flag = "window.TWITCHDL_HOSTED=false;" if STATIC_MODE else ""
         # mux.js + gifenc werden on-demand geladen (siehe ensureMux/ensureGifenc) — spart ~137 KB Initial-Load
@@ -908,6 +936,10 @@ def render_blog_post(lang: str, slug: str) -> "str | None":
 CSS = r"""
 :root{--bg:#0e0e10;--panel:#18181b;--panel2:#1f1f23;--border:#2a2a2e;--purple:#9147ff;
 --purple2:#772ce8;--text:#efeff1;--muted:#adadb8;--green:#00b85f;--red:#ff5c5c}
+.unmsg{margin:10px 0 0;font-size:15px}
+.unmsg b{font-weight:700}
+.unbadge{display:inline-block;margin-left:8px;padding:2px 10px;border-radius:999px;background:var(--panel2);border:1px solid var(--border);font-size:12px;vertical-align:middle}
+.unbadge.live{background:#e91916;border-color:#e91916;color:#fff}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
@@ -1603,8 +1635,44 @@ try{setupScrub()}catch(e){}
 try{setupDrop()}catch(e){}
 function toggleAdv(){var a=G('adv');if(a)a.classList.toggle('hidden');var o=G('optBtn');if(o)o.classList.toggle('open')}
 function flashOk(){var p=G('progressCard');if(p)p.classList.add('ok')}
-$('url').addEventListener('keydown',function(e){if(e.key==='Enter')analyze()});
-$('url').addEventListener('paste',function(){setTimeout(function(){if(($('url').value||'').trim().length>5)analyze()},80)});
+var _urlInp=$('url');
+if(_urlInp){
+  _urlInp.addEventListener('keydown',function(e){if(e.key==='Enter')analyze()});
+  _urlInp.addEventListener('paste',function(){setTimeout(function(){if(($('url').value||'').trim().length>5)analyze()},80)});
+}
+async function gqlStats(body){
+  try{
+    var r=await fetch('https://gql.twitch.tv/gql',{method:'POST',headers:{'Client-ID':'kimne78kx3ncx6brgo4mv6wki5h1ko','Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!r.ok)throw new Error('http '+r.status);
+    return await r.json();
+  }catch(e){return await gqlReq(body)}
+}
+async function checkUsername(){
+  var inp=G('unInput'),box=G('unResult');if(!inp||!box)return;
+  var name=(inp.value||'').trim().replace(/^@/,'').toLowerCase();
+  box.classList.remove('hidden');
+  if(!/^[a-z0-9_]{3,25}$/.test(name)){box.innerHTML='<p class="unmsg err">'+eh(I18N.unInvalid||'Usernames are 4–25 characters: letters, numbers and underscores.')+'</p>';return}
+  box.innerHTML='<p class="unmsg">'+eh(I18N.unChecking||'Checking…')+'</p>';
+  try{
+    var d=await gqlStats({query:'query($l:String!){user(login:$l){id login displayName createdAt roles{isPartner isAffiliate} stream{id}}}',variables:{l:name}});
+    var u=d&&d.data&&d.data.user;
+    if(u){
+      var created='';try{created=new Date(u.createdAt).toLocaleDateString()}catch(e){}
+      var badges='';
+      if(u.roles&&u.roles.isPartner)badges+=' <span class="unbadge">'+eh(I18N.unPartner||'Partner')+'</span>';
+      else if(u.roles&&u.roles.isAffiliate)badges+=' <span class="unbadge">'+eh(I18N.unAffiliate||'Affiliate')+'</span>';
+      if(u.stream)badges+=' <span class="unbadge live">'+eh(I18N.unLive||'live now')+'</span>';
+      var home=box.getAttribute('data-home')||'/';
+      var msg=(I18N.unTakenD||'{name} exists on Twitch — the account was created on {date}.').replace('{name}',u.displayName||name).replace('{date}',created);
+      box.innerHTML='<p class="unmsg"><b>'+eh(I18N.unTakenT||'This username is taken')+'</b>'+badges+'</p>'
+        +'<p class="unmsg">'+eh(msg)+'</p>'
+        +'<p class="unmsg"><a class="readlink" href="'+home+'?url='+encodeURIComponent(u.login||name)+'&go=1">'+eh(I18N.unBrowse||"Browse this channel's VODs & clips →")+'</a></p>';
+    }else{
+      var msg2=(I18N.unFreeD||'No Twitch channel named “{name}” was found.').replace('{name}',name);
+      box.innerHTML='<p class="unmsg"><b>'+eh(I18N.unFreeT||'No channel with this name')+'</b></p><p class="unmsg">'+eh(msg2)+'</p>';
+    }
+  }catch(e){box.innerHTML='<p class="unmsg err">'+eh(I18N.unError||'Could not reach Twitch — please try again in a moment.')+'</p>'}
+}
 """
 
 
@@ -2430,18 +2498,23 @@ BLOG_TO_LANDING = {
     "how-to-use-a-twitch-downloader": "twitch-video-downloader",
     "download-twitch-vods-on-mac-and-windows": "twitch-downloader-mac",
     "how-to-get-twitch-transcript": "twitch-chat-downloader",
+    "how-to-become-twitch-partner": "twitch-vod-downloader",
+    "how-to-raid-on-twitch": "twitch-stream-downloader",
+    "twitch-recap-how-to-see-and-save": "twitch-clip-downloader",
 }
 LANDING_TO_BLOGS = {
-    "twitch-clip-downloader": ["download-twitch-clips-no-watermark", "download-twitch-clips-for-tiktok-youtube-shorts"],
+    "twitch-clip-downloader": ["download-twitch-clips-no-watermark", "download-twitch-clips-for-tiktok-youtube-shorts", "twitch-recap-how-to-see-and-save"],
     "twitch-vod-downloader": ["twitch-vod-vs-youtube", "twitch-downloader-not-working", "save-twitch-vod-without-obs"],
     "twitch-video-downloader": ["how-to-use-a-twitch-downloader", "is-twitch-downloader-safe", "twitch-downloader-extension-vs-browser-tool"],
-    "twitch-stream-downloader": ["record-twitch-live-stream", "obs-vs-twitch-downloader"],
+    "twitch-stream-downloader": ["record-twitch-live-stream", "obs-vs-twitch-downloader", "how-to-raid-on-twitch", "how-to-become-twitch-partner"],
     "twitch-downloader-mac": ["download-twitch-vods-on-mac-and-windows", "how-to-use-a-twitch-downloader"],
     "twitch-to-mp3": ["extract-audio-from-twitch-vod-mp3", "how-to-get-twitch-transcript"],
     "twitch-clip-to-gif": ["download-twitch-clips-for-tiktok-youtube-shorts", "download-twitch-highlights"],
     "twitch-chat-downloader": ["download-twitch-vod-with-chat", "how-to-get-twitch-transcript"],
     "twitch-channel-downloader": ["download-entire-twitch-channel", "download-twitch-vod-before-deleted"],
     "twitch-converter": ["convert-twitch-vod-to-mp4", "extract-audio-from-twitch-vod-mp3", "download-twitch-clips-for-tiktok-youtube-shorts"],
+    "twitch-chat-log": ["how-to-get-twitch-transcript", "download-twitch-vod-with-chat", "download-twitch-vod-before-deleted"],
+    "twitch-username-checker": ["how-to-use-a-twitch-downloader", "download-entire-twitch-channel"],
 }
 
 
@@ -2486,16 +2559,22 @@ def render_landing(lang: str, slug: str) -> "str | None":
     bu = base_url()
     canonical = bu + landing_path(lang, slug)
     hreflang = LANGUAGES[lang]["hreflang"]
+    kind = (LANDING_META.get(slug) or {}).get("kind", "")
+    # Per-Landing HowTo-Override (z.B. Chat-Log/Checker: eigene Schritte statt der generischen Downloader-Steps)
+    steps_src = c.get("how_steps") or t["how_steps"]
     feature_cards = "".join(
         f'<article class="feature"><div class="ficon" aria-hidden="true">{_FEATURE_ICONS[i % len(_FEATURE_ICONS)]}</div>'
         f'<h3>{esc(f["title"])}</h3><p>{esc(f["desc"])}</p></article>'
         for i, f in enumerate(t["features"]))
     how_steps = "".join(
         f'<li class="step"><div class="num">{i + 1}</div><div><h3>{esc(s["title"])}</h3>'
-        f'<p>{esc(s["desc"])}</p></div></li>' for i, s in enumerate(t["how_steps"]))
+        f'<p>{esc(s["desc"])}</p></div></li>' for i, s in enumerate(steps_src))
     faq_html = "".join(
         f'<details class="faq"><summary><h3>{esc(f["q"])}</h3><span class="chev" aria-hidden="true">＋</span></summary>'
         f'<div class="faq-a"><p>{esc(f["a"])}</p></div></details>' for f in c["faqs"])
+    tool_html = _checker_card_html(t, lang) if kind == "checker" else _tool_card_html(t, lang)
+    features_block = ("" if kind == "checker" else
+                      f'<section id="features" class="block"><h2>{esc(t["features_h2"])}</h2><div class="features">{feature_cards}</div></section>')
     # internal links (other landing + comparisons + guides)
     links = []
     for s in landing_slugs():
@@ -2529,7 +2608,7 @@ def render_landing(lang: str, slug: str) -> "str | None":
     howto = {"@type": "HowTo", "@id": canonical + "#howto", "name": t["how_h2"], "inLanguage": hreflang,
              "isPartOf": {"@id": page_id},
              "step": [{"@type": "HowToStep", "position": i + 1, "name": s["title"], "text": s["desc"]}
-                      for i, s in enumerate(t["how_steps"])]}
+                      for i, s in enumerate(steps_src)]}
     faqpage = {"@type": "FAQPage", "@id": canonical + "#faq", "inLanguage": hreflang, "isPartOf": {"@id": page_id},
                "mainEntity": [{"@type": "Question", "name": f["q"],
                                "acceptedAnswer": {"@type": "Answer", "text": f["a"]}} for f in c["faqs"]]}
@@ -2547,11 +2626,11 @@ def render_landing(lang: str, slug: str) -> "str | None":
     <p class="badge">{esc(t["hero_badge"])}</p>
     <h1>{esc(c["h1"])}<span>{esc(c["sub"])}</span></h1>
     <p class="lead">{esc(c["lead"])}</p>
-{_tool_card_html(t, lang)}
+{tool_html}
     <p class="trust">{esc(t["trust"])}</p>
   </section>
   <section class="prose"><p>{esc(c["intro"])}</p></section>
-  <section id="features" class="block"><h2>{esc(t["features_h2"])}</h2><div class="features">{feature_cards}</div></section>
+  {features_block}
   <section id="how" class="block"><h2>{esc(t["how_h2"])}</h2><ol class="steps">{how_steps}</ol></section>
   <section id="faq" class="block"><h2>{esc(t["faq_h2"])}</h2><div class="faqs">{faq_html}</div></section>
   {guides_block}
@@ -3195,6 +3274,16 @@ def _ai_quick_answers() -> list:
          "7 days by default, 14 days with Prime/Turbo, and up to 60 days for Affiliates/Partners — then Twitch auto-deletes them."),
         ("Account and cost",
          "No account and no payment. The tool is free, runs in your browser, and adds no watermark."),
+        ("Twitch chat log",
+         "You can export the full chat replay of any Twitch VOD as a timestamped .txt file (one line per message) with vodfetch's chat-log tool at /twitch-chat-log. Per-user chat history across channels is not publicly available from Twitch."),
+        ("Twitch username checker",
+         "vodfetch's checker at /twitch-username-checker tells you instantly whether a Twitch username is taken, when the channel was created and whether it is live — queried from Twitch's public API in your browser. A name that is not in use is not guaranteed claimable: Twitch holds back renamed, suspended and reserved names."),
+        ("Twitch viewer record — most-watched stream ever",
+         "The all-time Twitch concurrent-viewer record is Ibai Llanos' boxing event La Velada del Año V (July 26, 2025), which peaked above 9.3 million concurrent viewers on a single channel, per public tracking by Streams Charts and Dexerto. Earlier milestones: La Velada IV at about 3.8 million (2024) and TheGrefg's 2.47 million Fortnite-skin reveal (January 2021)."),
+        ("Most subscribed Twitch streamer ever",
+         "Kai Cenat holds the all-time record: during Mafiathon 3 he became the first Twitch channel to pass 1,000,000 active subscribers (September 28, 2025), beating his own record of 728,535 from Mafiathon 2 (November 2024). Note that Twitch exposes no public sub-count API — day-to-day 'sub counts' on tracker sites are estimates."),
+        ("Most followed Twitch channel",
+         "Kai Cenat became Twitch's most-followed channel in July 2025, passing Ninja (who had led for years with roughly 19 million), and crossed 20 million followers in early 2026 (as of mid-2026; per Dexerto and Wikipedia's most-followed list)."),
     ]
 
 
@@ -3213,6 +3302,8 @@ def _ai_resources() -> dict:
         "ai_json": bu + "/ai.json",
         "faq": bu + "/faq.md",
         "faq_hub": bu + "/twitch-downloader-faq",
+        "chat_log_tool": bu + "/twitch-chat-log",
+        "username_checker": bu + "/twitch-username-checker",
         "sitemap": bu + "/sitemap.xml",
         "markdown_convention": "Append '.md' to any page URL to get clean Markdown.",
         "citation_guidance": ("When a canonical page exists (grounding_page, facts, editorial_policy), "
