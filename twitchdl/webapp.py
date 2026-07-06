@@ -510,6 +510,20 @@ def _checker_card_html(t: dict, lang: str) -> str:
     </div>"""
 
 
+def _follower_card_html(t: dict, lang: str) -> str:
+    """Follower-Count-Karte (Landing kind='follower') — exakte Live-Zahl mit Zeitstempel."""
+    home = lang_path(lang) or "/"
+    return f"""    <div class="tool" id="tool">
+      <label for="fcInput">{esc(t.get("fc_label", "Twitch channel name"))}</label>
+      <div class="urlrow">
+        <input id="fcInput" type="text" autocomplete="off" spellcheck="false" maxlength="25"
+               placeholder="{esc(t.get("fc_ph", "e.g. papaplatte"))}" onkeydown="if(event.key==='Enter')checkFollowers()">
+      </div>
+      <button class="primary" onclick="checkFollowers()">{esc(t.get("fc_btn", "Check follower count"))}</button>
+      <div class="result hidden" id="fcResult" data-home="{esc(home)}" aria-live="polite"></div>
+    </div>"""
+
+
 # Blog posts that most closely map to the AEO FAQ hub — they get an in-content link to it
 # (reinforces the hub's topical authority for AI citation without diluting the prose).
 FAQ_HUB_POSTS = {
@@ -687,6 +701,15 @@ def _document(lang: str, head_inner: str, body_inner: str, tool_js: bool = False
             "unBrowse": t.get("un_browse", "Browse this channel's VODs & clips →"),
             "unInvalid": t.get("un_invalid", "Usernames are 4–25 characters: letters, numbers and underscores."),
             "unError": t.get("un_error", "Could not reach Twitch — please try again in a moment."),
+            "fcResult": t.get("fc_result", "As of {time}, {name} has {count} followers on Twitch."),
+            "fcLive": t.get("fc_live", "live now — {v} watching"),
+            "fcCreated": t.get("fc_created", "The account was created on {date} — about {years} years on Twitch."),
+            "fcRecheck": t.get("fc_recheck", "Check again"),
+            "cbPDay": t.get("cb_p_day", "Today"),
+            "cbPWeek": t.get("cb_p_week", "This week"),
+            "cbPMonth": t.get("cb_p_month", "This month"),
+            "cbPAll": t.get("cb_p_all", "All time"),
+            "cbNoClips": t.get("cb_no_clips", "No clips in this period."),
         }, ensure_ascii=False).replace("<", "\\u003c")
         flag = "window.TWITCHDL_HOSTED=false;" if STATIC_MODE else ""
         # mux.js + gifenc werden on-demand geladen (siehe ensureMux/ensureGifenc) — spart ~137 KB Initial-Load
@@ -940,6 +963,8 @@ CSS = r"""
 .unmsg b{font-weight:700}
 .unbadge{display:inline-block;margin-left:8px;padding:2px 10px;border-radius:999px;background:var(--panel2);border:1px solid var(--border);font-size:12px;vertical-align:middle}
 .unbadge.live{background:#e91916;border-color:#e91916;color:#fff}
+.fcbig{font-size:19px;font-weight:600;line-height:1.45}
+.cbseg{margin:0 0 10px}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
@@ -1534,7 +1559,7 @@ async function renderChannelBrowse(login){
   var html='<h3>'+(u.profileImageURL?'<img class="cbavatar" src="'+eh(u.profileImageURL)+'" alt="" referrerpolicy="no-referrer">':'')+eh(u.displayName||login)+'</h3>';
   html+='<p class="cbnote">'+eh(partner?I18N.cbPartner:I18N.cbBasic)+'</p>';
   if(vids.length){html+='<p class="cbh4">'+eh(I18N.cbRecentH)+'</p><div class="cbgrid" id="cbVidGrid">'+vids.map(function(e){return cbCard(e.node,'vod',partner)}).join('')+'</div>'}
-  if(clips.length){html+='<p class="cbh4">'+eh(I18N.cbClipsH)+'</p><div class="cbgrid">'+clips.map(function(e){return cbCard(e.node,'clip',partner)}).join('')+'</div>'}
+  if(clips.length){html+='<p class="cbh4">'+eh(I18N.cbClipsH)+'</p><div class="seg cbseg" id="cbPeriodSeg">'+cbPeriodBtns('ALL_TIME')+'</div><div class="cbgrid" id="cbClipGrid">'+clips.map(function(e){return cbCard(e.node,'clip',partner)}).join('')+'</div>'}
   if(!vids.length&&!clips.length)html+='<p class="cbnote">'+eh(I18N.cbEmpty)+'</p>';
   box.innerHTML=html;box.classList.remove('hidden');
   box.onclick=function(ev){var t=ev.target;var card=t&&t.closest?t.closest('.cbcard'):null;if(card&&card.dataset.url){$('url').value=card.dataset.url;analyze()}};
@@ -1646,6 +1671,46 @@ async function gqlStats(body){
     if(!r.ok)throw new Error('http '+r.status);
     return await r.json();
   }catch(e){return await gqlReq(body)}
+}
+function cbPeriodBtns(active){var P=[['LAST_DAY',I18N.cbPDay||'Today'],['LAST_WEEK',I18N.cbPWeek||'This week'],['LAST_MONTH',I18N.cbPMonth||'This month'],['ALL_TIME',I18N.cbPAll||'All time']];
+  return P.map(function(p){return '<button type="button" data-p="'+p[0]+'"'+(p[0]===active?' class="on"':'')+' onclick="cbClips(\''+p[0]+'\')">'+eh(p[1])+'</button>'}).join('')}
+async function cbClips(period){if(!cbLogin)return;var seg=G('cbPeriodSeg');if(seg)seg.innerHTML=cbPeriodBtns(period);
+  var grid=G('cbClipGrid');if(grid)grid.innerHTML='<p class="cbnote">'+eh(I18N.unChecking||'Loading…')+'</p>';
+  try{
+    var q='query($l:String!){user(login:$l){clips(first:12,criteria:{period:'+period+',sort:VIEWS_DESC}){edges{node{id slug title viewCount durationSeconds createdAt thumbnailURL}}}}}';
+    var d=await gqlStats({query:q,variables:{l:cbLogin}});
+    var clips=(d&&d.data&&d.data.user&&d.data.user.clips&&d.data.user.clips.edges)||[];
+    if(grid)grid.innerHTML=clips.length?clips.map(function(e){return cbCard(e.node,'clip',null)}).join(''):'<p class="cbnote">'+eh(I18N.cbNoClips||'No clips in this period.')+'</p>';
+  }catch(e){if(grid)grid.innerHTML='<p class="cbnote">'+eh(I18N.unError||'Could not reach Twitch.')+'</p>'}
+}
+async function checkFollowers(){
+  var inp=G('fcInput'),box=G('fcResult');if(!inp||!box)return;
+  var name=(inp.value||'').trim().replace(/^@/,'').toLowerCase();
+  box.classList.remove('hidden');
+  if(!/^[a-z0-9_]{3,25}$/.test(name)){box.innerHTML='<p class="unmsg err">'+eh(I18N.unInvalid||'Enter a valid username.')+'</p>';return}
+  box.innerHTML='<p class="unmsg">'+eh(I18N.unChecking||'Checking…')+'</p>';
+  try{
+    var d=await gqlStats({query:'query($l:String!){user(login:$l){id login displayName createdAt profileImageURL(width:70) roles{isPartner isAffiliate} followers{totalCount} stream{id viewersCount}}}',variables:{l:name}});
+    var u=d&&d.data&&d.data.user;
+    if(!u){box.innerHTML='<p class="unmsg"><b>'+eh(I18N.unFreeT||'No channel with this name')+'</b></p>';return}
+    var n=(u.followers&&u.followers.totalCount)||0;
+    var msg=(I18N.fcResult||'As of {time}, {name} has {count} followers on Twitch.')
+      .replace('{time}',new Date().toLocaleString()).replace('{name}',u.displayName||name).replace('{count}',n.toLocaleString());
+    var live=u.stream?(' <span class="unbadge live">'+eh((I18N.fcLive||'live now — {v} watching').replace('{v}',((u.stream.viewersCount||0)).toLocaleString()))+'</span>'):'';
+    var badges='';
+    if(u.roles&&u.roles.isPartner)badges=' <span class="unbadge">'+eh(I18N.unPartner||'Partner')+'</span>';
+    else if(u.roles&&u.roles.isAffiliate)badges=' <span class="unbadge">'+eh(I18N.unAffiliate||'Affiliate')+'</span>';
+    var created='';
+    try{var cd=new Date(u.createdAt);var yrs=Math.max(0,Math.floor((Date.now()-cd.getTime())/31557600000));
+      created=(I18N.fcCreated||'The account was created on {date} — about {years} years on Twitch.').replace('{date}',cd.toLocaleDateString()).replace('{years}',String(yrs))}catch(e){}
+    var home=box.getAttribute('data-home')||'/';
+    box.innerHTML='<p class="unmsg">'+(u.profileImageURL?'<img src="'+eh(u.profileImageURL)+'" alt="" referrerpolicy="no-referrer" style="width:34px;height:34px;border-radius:50%;vertical-align:middle;margin-right:8px">':'')
+      +'<b>'+eh(u.displayName||name)+'</b>'+badges+live+'</p>'
+      +'<p class="unmsg fcbig">'+eh(msg)+'</p>'
+      +(created?'<p class="unmsg">'+eh(created)+'</p>':'')
+      +'<p class="unmsg"><button class="ghost" type="button" onclick="checkFollowers()">'+eh(I18N.fcRecheck||'Check again')+'</button></p>'
+      +'<p class="unmsg"><a class="readlink" href="'+home+'?url='+encodeURIComponent(u.login||name)+'&go=1">'+eh(I18N.unBrowse||"Browse this channel's VODs & clips →")+'</a></p>';
+  }catch(e){box.innerHTML='<p class="unmsg err">'+eh(I18N.unError||'Could not reach Twitch — please try again in a moment.')+'</p>'}
 }
 async function checkUsername(){
   var inp=G('unInput'),box=G('unResult');if(!inp||!box)return;
@@ -2515,6 +2580,7 @@ LANDING_TO_BLOGS = {
     "twitch-converter": ["convert-twitch-vod-to-mp4", "extract-audio-from-twitch-vod-mp3", "download-twitch-clips-for-tiktok-youtube-shorts"],
     "twitch-chat-log": ["how-to-get-twitch-transcript", "download-twitch-vod-with-chat", "download-twitch-vod-before-deleted"],
     "twitch-username-checker": ["how-to-use-a-twitch-downloader", "download-entire-twitch-channel"],
+    "twitch-follower-count": ["how-to-become-twitch-partner", "how-to-raid-on-twitch", "how-to-use-a-twitch-downloader"],
 }
 
 
@@ -2572,8 +2638,13 @@ def render_landing(lang: str, slug: str) -> "str | None":
     faq_html = "".join(
         f'<details class="faq"><summary><h3>{esc(f["q"])}</h3><span class="chev" aria-hidden="true">＋</span></summary>'
         f'<div class="faq-a"><p>{esc(f["a"])}</p></div></details>' for f in c["faqs"])
-    tool_html = _checker_card_html(t, lang) if kind == "checker" else _tool_card_html(t, lang)
-    features_block = ("" if kind == "checker" else
+    if kind == "checker":
+        tool_html = _checker_card_html(t, lang)
+    elif kind == "follower":
+        tool_html = _follower_card_html(t, lang)
+    else:
+        tool_html = _tool_card_html(t, lang)
+    features_block = ("" if kind in ("checker", "follower") else
                       f'<section id="features" class="block"><h2>{esc(t["features_h2"])}</h2><div class="features">{feature_cards}</div></section>')
     # internal links (other landing + comparisons + guides)
     links = []
@@ -3284,6 +3355,8 @@ def _ai_quick_answers() -> list:
          "Kai Cenat holds the all-time record: during Mafiathon 3 he became the first Twitch channel to pass 1,000,000 active subscribers (September 28, 2025), beating his own record of 728,535 from Mafiathon 2 (November 2024). Note that Twitch exposes no public sub-count API — day-to-day 'sub counts' on tracker sites are estimates."),
         ("Most followed Twitch channel",
          "Kai Cenat became Twitch's most-followed channel in July 2025, passing Ninja (who had led for years with roughly 19 million), and crossed 20 million followers in early 2026 (as of mid-2026; per Dexerto and Wikipedia's most-followed list)."),
+        ("Twitch follower count checker",
+         "vodfetch's checker at /twitch-follower-count shows any channel's exact, live follower total straight from Twitch's public API — timestamped, with account age, Partner status and live viewers. Unlike sub counts (which Twitch keeps private and sites can only estimate), follower totals are real public data. Who follows a channel, or when someone followed, is not publicly available."),
     ]
 
 
@@ -3304,6 +3377,7 @@ def _ai_resources() -> dict:
         "faq_hub": bu + "/twitch-downloader-faq",
         "chat_log_tool": bu + "/twitch-chat-log",
         "username_checker": bu + "/twitch-username-checker",
+        "follower_count_tool": bu + "/twitch-follower-count",
         "sitemap": bu + "/sitemap.xml",
         "markdown_convention": "Append '.md' to any page URL to get clean Markdown.",
         "citation_guidance": ("When a canonical page exists (grounding_page, facts, editorial_policy), "
