@@ -13,6 +13,7 @@ import html as _html
 import json
 import os
 import queue
+import re
 import threading
 import uuid
 import webbrowser
@@ -611,11 +612,16 @@ def build_body(t: dict, lang: str) -> str:
         "  </section>\n"
     ) if guide_cards else ""
 
-    tool_cards = _landing_cards_html(lang) + _stats_cards_html(lang)
+    tool_cards = _landing_cards_html(lang)
+    stats_cards = _stats_cards_html(lang)
     tools_section = (
         f'\n  <section id="tools" class="block">\n    <h2>{esc(t.get("tools_h2", "Free Twitch download tools"))}</h2>\n'
         f'    <div class="cards">{tool_cards}</div>\n  </section>\n'
     ) if tool_cards else ""
+    if stats_cards:
+        tools_section += (
+            f'\n  <section id="stats" class="block">\n    <h2>{esc(t.get("stats_h2", "Twitch stats & rankings — measured, not estimated"))}</h2>\n'
+            f'    <div class="cards">{stats_cards}</div>\n  </section>\n')
 
     _aq = _urlquote(t.get("askai_q", ""))
     askai_btns = (
@@ -979,12 +985,42 @@ CSS = r"""
 .unbadge.live{background:#e91916;border-color:#e91916;color:#fff}
 .fcbig{font-size:19px;font-weight:600;line-height:1.45}
 .cbseg{margin:0 0 10px}
-.ranklist{list-style:none;counter-reset:rk;margin:18px 0;padding:0}
-.ranklist li{counter-increment:rk;display:flex;gap:12px;align-items:baseline;padding:9px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
-.ranklist li::before{content:counter(rk);font-weight:700;color:var(--purple);min-width:26px}
-.rl-name{font-weight:600}
-.rl-val{margin-left:auto;font-variant-numeric:tabular-nums}
-.rl-note{flex-basis:100%;color:var(--muted);font-size:13px;padding-left:38px}
+.ranklist{list-style:none;counter-reset:rk;margin:18px 0;padding:0;display:grid;gap:10px}
+.ranklist li{counter-increment:rk;display:flex;gap:14px;align-items:center;padding:12px 16px;
+  background:var(--panel);border:1px solid var(--border);border-radius:12px;
+  transition:transform .15s ease,border-color .15s ease}
+.ranklist li:hover{transform:translateY(-2px);border-color:var(--purple)}
+.ranklist li::before{content:counter(rk);font-weight:800;color:var(--muted);min-width:30px;font-size:15px;
+  font-variant-numeric:tabular-nums;text-align:center}
+.ranklist li:nth-child(1)::before{content:"🥇";font-size:20px}
+.ranklist li:nth-child(2)::before{content:"🥈";font-size:20px}
+.ranklist li:nth-child(3)::before{content:"🥉";font-size:20px}
+.ranklist li:nth-child(-n+3){background:linear-gradient(135deg,rgba(145,71,255,.12),var(--panel) 60%)}
+.rl-av{width:42px;height:42px;border-radius:50%;flex:none;border:1px solid var(--border)}
+.rl-main{display:flex;flex-direction:column;min-width:0;gap:2px}
+.rl-name{font-weight:700;font-size:16px}
+.rl-name a:hover{text-decoration:none;color:var(--purple)}
+.rl-note{color:var(--muted);font-size:12.5px;line-height:1.4}
+.rl-num{margin-left:auto;text-align:right;flex:none;max-width:46%}
+.rl-val{font-weight:700;font-variant-numeric:tabular-nums;font-size:15px;white-space:nowrap}
+.rl-bar{display:block;height:5px;border-radius:99px;margin-top:6px;margin-left:auto;
+  background:linear-gradient(90deg,var(--purple2),var(--purple));min-width:6px}
+@media (max-width:560px){.ranklist li{flex-wrap:wrap}.rl-num{max-width:100%;margin-left:44px;text-align:left}.rl-bar{margin-left:0}}
+/* --- Card-Design v2: Icon-Chips, Hover-Lift, ganzflächig klickbar --- */
+.cards .card{position:relative;display:flex;flex-direction:column;gap:7px;padding:18px;
+  transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+.cards .card:hover{transform:translateY(-3px);border-color:var(--purple);box-shadow:0 12px 30px rgba(145,71,255,.15)}
+.cards .card:hover h3 a{color:var(--purple)}
+.card .cicon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  font-size:21px;line-height:1;background:linear-gradient(135deg,rgba(145,71,255,.22),rgba(119,44,232,.07));
+  border:1px solid rgba(145,71,255,.32);margin-bottom:4px}
+.card .cav{width:44px;height:44px;border-radius:50%;border:1px solid var(--border);margin-bottom:4px}
+.card h3 a::after{content:"";position:absolute;inset:0}
+.card .goarr{position:absolute;top:16px;right:15px;color:var(--muted);font-weight:700;
+  transition:transform .15s ease,color .15s ease}
+.cards .card:hover .goarr{transform:translateX(4px);color:var(--purple)}
+.stavatar{width:64px;height:64px;border-radius:50%;vertical-align:middle;margin-right:14px;
+  border:2px solid var(--border)}
 .tghead{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .tgtable{width:100%;border-collapse:collapse;margin-top:6px}
 .tgtable th{text-align:left;font-size:13px;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--border)}
@@ -2647,11 +2683,25 @@ def _landing_alt_pairs(slug: str) -> list:
     return pairs
 
 
+_KIND_ICONS = {"clip": "🎬", "vod": "📼", "video": "🎥", "live": "🔴", "audio": "🎧", "gif": "✨",
+               "chat": "💬", "channel": "📚", "chapters": "🔖", "mac": "💻", "converter": "🔄",
+               "chatlog": "📜", "checker": "🔎", "follower": "📈", "topgames": "🎮"}
+_STATS_ICONS = {"records": "🏆", "mostfollowed": "👑", "germanstreamers": "🏅", "subcounts": "💜",
+                "methodology": "🔬"}
+
+
+def _card_html(href: str, title: str, desc: str, icon: str = "") -> str:
+    chip = f'<div class="cicon" aria-hidden="true">{icon}</div>' if icon else ""
+    return (f'<article class="card">{chip}<h3><a href="{esc(href)}">{esc(title)}</a></h3>'
+            f'<p>{esc(desc)}</p><span class="goarr" aria-hidden="true">→</span></article>')
+
+
 def _landing_cards_html(lang: str) -> str:
     """Karten für alle Keyword-Landingpages (Home-Tools + Index-Querverlinkung)."""
     return "".join(
-        f'<article class="card"><h3><a href="{esc(landing_path(lang, s))}">{esc((landing_copy(lang, s) or {}).get("h1", s))}</a></h3>'
-        f'<p>{esc((landing_copy(lang, s) or {}).get("sub", ""))}</p></article>'
+        _card_html(landing_path(lang, s), (landing_copy(lang, s) or {}).get("h1", s),
+                   (landing_copy(lang, s) or {}).get("sub", ""),
+                   _KIND_ICONS.get((LANDING_META.get(s) or {}).get("kind", ""), "⬇"))
         for s in landing_slugs() if landing_copy(lang, s))
 
 
@@ -2664,12 +2714,12 @@ def _stats_cards_html(lang: str) -> str:
     for key in ("records", "mostfollowed", "germanstreamers", "subcounts", "methodology"):
         c = infopage_copy(lang, key)
         if c:
-            cards.append(f'<article class="card"><h3><a href="{esc(infopage_path(lang, key))}">{esc(c["h1"])}</a></h3>'
-                         f'<p>{esc(c.get("lead", "")[:110])}</p></article>')
+            cards.append(_card_html(infopage_path(lang, key), c["h1"], c.get("lead", "")[:110],
+                                    _STATS_ICONS.get(key, "📊")))
     if STREAMER_PAGES:
         t = get_strings(lang)
-        cards.append(f'<article class="card"><h3><a href="/streamer">{esc(t.get("nav_streamers", "Streamer directory"))}</a></h3>'
-                     f'<p>{len(STREAMER_PAGES)} Streamer · VODs · Clips · MP4</p></article>')
+        cards.append(_card_html("/streamer", t.get("nav_streamers", "Streamer directory"),
+                                f"{len(STREAMER_PAGES)} Streamer · VODs · Clips · MP4", "🎙️"))
     return "".join(cards)
 
 
@@ -2712,9 +2762,10 @@ def render_landing(lang: str, slug: str) -> "str | None":
         if s != slug:
             oc = landing_copy(lang, s)
             if oc:
-                links.append(f'<article class="card"><h3><a href="{esc(landing_path(lang, s))}">{esc(oc["h1"])}</a></h3><p>{esc(oc["sub"])}</p></article>')
+                links.append(_card_html(landing_path(lang, s), oc["h1"], oc["sub"],
+                                        _KIND_ICONS.get((LANDING_META.get(s) or {}).get("kind", ""), "⬇")))
     if COMPARE_META:
-        links.append(f'<article class="card"><h3><a href="{esc(compare_index_path(lang))}">{esc(compare_labels(lang)["ui"]["index_h1"])}</a></h3></article>')
+        links.append(_card_html(compare_index_path(lang), compare_labels(lang)["ui"]["index_h1"], "", "⚖️"))
     if kind in ("checker", "follower", "topgames", "chatlog"):
         links.append(_stats_cards_html(lang))
     links_html = (f'<section class="block"><h2>{esc(t["blog_h1"])}</h2><div class="cards">{"".join(links)}</div>'
@@ -2898,15 +2949,20 @@ def render_streamer(login: str) -> "str | None":
     badges = f' <span class="unbadge">{esc(ui["partner"])}</span>' if d["partner"] else ""
     bio_block = (f'<p class="cbnote">{esc(ui["bio_h"])} „{esc(d["bio"])}“</p>'
                  if d.get("bio") else "")
+    avatar_html = ('<img class="stavatar" src="' + esc(d["avatar"])
+                   + '" alt="" referrerpolicy="no-referrer" onerror="this.style.display=' + "'none'" + '">') if d.get("avatar") else ""
     # Verwandte Streamer (gleiche Sprache, nach Followern benachbart)
     same = [(l2, s2) for l2, s2 in STREAMER_PAGES.items() if s2["lang"] == lang and l2 != login]
     same.sort(key=lambda kv: abs(kv[1]["followers"] - d["followers"]))
     rel_cards = "".join(
-        f'<article class="card"><h3><a href="/streamer/{esc(l2)}">{esc(s2["name"])}</a></h3>'
-        f'<p>{esc(_st_fmt(s2["followers"], lang))} {"Follower" if lang == "de" else ("followers" if lang in ("en", "fr") else "seguidores")}</p></article>'
+        '<article class="card">'
+        + (f'<img class="cav" src="{esc(s2["avatar"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">' if s2.get("avatar") else "")
+        + f'<h3><a href="/streamer/{esc(l2)}">{esc(s2["name"])}</a></h3>'
+        + f'<p>{esc(_st_fmt(s2["followers"], lang))} {"Follower" if lang == "de" else ("followers" if lang in ("en", "fr") else "seguidores")}</p>'
+        + '<span class="goarr" aria-hidden="true">→</span></article>'
         for l2, s2 in same[:4])
     guides = "".join(
-        f'<article class="card"><h3><a href="{esc(blog_post_path(lang, b))}">{esc(bd["title"])}</a></h3></article>'
+        _card_html(blog_post_path(lang, b), bd["title"], "", "📘")
         for b in ("how-to-use-a-twitch-downloader", "download-twitch-vod-before-deleted")
         for bd in [blog_post_data(b, lang)] if bd)
     faq_html = "".join(
@@ -2940,7 +2996,7 @@ def render_streamer(login: str) -> "str | None":
 <main>
   <article class="article">
     <nav class="crumbs"><a href="{esc(lang_path(lang))}">{esc(BRAND)}</a> › <a href="/streamer">Streamer</a> › <span>{esc(name)}</span></nav>
-    <h1>{esc(name)}{badges}</h1>
+    <h1>{avatar_html}{esc(name)}{badges}</h1>
     <p class="cbnote">{esc(" · ".join(facts_bits))} · <a href="{esc(landing_path(lang, "twitch-follower-count"))}">{esc(ui.get("live_check", "live check →"))}</a></p>
     <p class="answer">{esc(d["blurb"])}</p>
     {bio_block}
@@ -2988,8 +3044,11 @@ def render_streamer_index() -> str:
         if not items:
             continue
         cards = "".join(
-            f'<article class="card"><h3><a href="/streamer/{esc(l)}">{esc(s["name"])}</a></h3>'
-            f'<p>{esc(_st_fmt(s["followers"], code))} followers</p></article>' for l, s in items)
+            '<article class="card">'
+            + (f'<img class="cav" src="{esc(s["avatar"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">' if s.get("avatar") else "")
+            + f'<h3><a href="/streamer/{esc(l)}">{esc(s["name"])}</a></h3>'
+            + f'<p>{esc(_st_fmt(s["followers"], code))} followers</p>'
+            + '<span class="goarr" aria-hidden="true">→</span></article>' for l, s in items)
         secs.append(f'<section class="block"><h2>{esc(label)} ({len(items)})</h2><div class="cards">{cards}</div></section>')
     page_id = canonical + "#webpage"
     webpage = {"@type": "CollectionPage", "@id": page_id, "url": canonical, "name": title,
@@ -3142,13 +3201,20 @@ def render_infopage(lang: str, key: str) -> "str | None":
     list_block = ""
     itemlist_ld = None
     if c.get("list"):
+        _nums = [int(re.sub(r"\D", "", x["value"]) or 0) for x in c["list"]]
+        _max = max(_nums) if _nums else 1
         rows = "".join(
-            '<li><span class="rl-name">'
+            "<li>"
+            + (f'<img class="rl-av" src="{esc(r["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">' if r.get("img") else "")
+            + '<div class="rl-main"><span class="rl-name">'
             + (f'<a href="{esc(r["href"])}">{esc(r["name"])}</a>' if r.get("href") else esc(r["name"]))
-            + f'</span><span class="rl-val">{esc(r["value"])}</span>'
+            + "</span>"
             + (f'<span class="rl-note">{esc(r["note"])}</span>' if r.get("note") else "")
+            + "</div>"
+            + f'<div class="rl-num"><span class="rl-val">{esc(r["value"])}</span>'
+            + f'<i class="rl-bar" style="width:{max(4, round(n / _max * 100))}%"></i></div>'
             + "</li>"
-            for r in c["list"])
+            for r, n in zip(c["list"], _nums))
         heading = f'<h2>{esc(c["list_h"])}</h2>' if c.get("list_h") else ""
         list_block = f'{heading}<ol class="ranklist">{rows}</ol>'
         itemlist_ld = {"@type": "ItemList", "@id": canonical + "#ranking",
