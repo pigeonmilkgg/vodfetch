@@ -2729,8 +2729,12 @@ def md_landing(lang: str, slug: str) -> "str | None":
 # --------------------------------------------------------------------------- #
 # Static info pages: Editorial & Honesty Policy + Colophon (how the site is built)
 # --------------------------------------------------------------------------- #
-INFO_PAGE_SLUGS = {"editorial": "editorial-policy", "colophon": "how-this-site-is-built"}
-INFO_PAGE_ORDER = ["editorial", "colophon"]
+INFO_PAGE_SLUGS = {"editorial": "editorial-policy", "colophon": "how-this-site-is-built",
+                   "records": "twitch-records", "subcounts": "twitch-sub-counts",
+                   "methodology": "methodology"}
+INFO_PAGE_ORDER = ["editorial", "colophon", "records", "subcounts", "methodology"]
+# Die drei Stats-Meta-Seiten verlinken sich gegenseitig (Themencluster)
+_INFOPAGE_CLUSTER = ("records", "subcounts", "methodology")
 
 
 def infopage_keys() -> list:
@@ -2775,10 +2779,24 @@ def _infopage_related(lang: str, key: str) -> list:
     """In-content 'Related pages' links for internal linking between the meta pages."""
     bu = base_url()
     links = []
-    other = "colophon" if key == "editorial" else "editorial"
-    oc = infopage_copy(lang, other)
-    if oc:
-        links.append((oc["h1"], infopage_path(lang, other)))
+    if key in _INFOPAGE_CLUSTER:
+        for other in _INFOPAGE_CLUSTER:
+            if other != key:
+                oc = infopage_copy(lang, other)
+                if oc:
+                    links.append((oc["h1"], infopage_path(lang, other)))
+        oc = infopage_copy(lang, "editorial")
+        if oc:
+            links.append((oc["h1"], infopage_path(lang, "editorial")))
+    else:
+        other = "colophon" if key == "editorial" else "editorial"
+        oc = infopage_copy(lang, other)
+        if oc:
+            links.append((oc["h1"], infopage_path(lang, other)))
+        for extra in _INFOPAGE_CLUSTER[:2]:
+            oc = infopage_copy(lang, extra)
+            if oc:
+                links.append((oc["h1"], infopage_path(lang, extra)))
     links.append(("Grounding page", "/grounding"))
     if key == "editorial":
         links.append(("Canonical facts", "/facts.md"))
@@ -2804,7 +2822,7 @@ def render_infopage(lang: str, key: str) -> "str | None":
         f'<h2>{esc(s["heading"])}</h2>' + "".join(f"<p>{esc(p)}</p>" for p in s.get("paragraphs", []))
         for s in c.get("sections", []))
 
-    # Editorial: the canonical-pages block (explicit "cite these" guidance) + FAQ
+    # Editorial: the canonical-pages block (explicit "cite these" guidance); FAQ für jede Seite mit faqs
     canonical_block = ""
     faq_block = ""
     faq_ld = None
@@ -2816,15 +2834,15 @@ def render_infopage(lang: str, key: str) -> "str | None":
             f'<p>{esc(c.get("canonical_intro", ""))}</p>'
             f'<ul class="canonlist">{can_links}</ul>'
             f'<p>{esc(c.get("canonical_outro", ""))}</p>')
-        if c.get("faqs"):
-            faq_html = "".join(
-                f'<details class="faq"><summary><h3>{esc(f["q"])}</h3><span class="chev" aria-hidden="true">＋</span></summary>'
-                f'<div class="faq-a"><p>{esc(f["a"])}</p></div></details>' for f in c["faqs"])
-            faq_block = f'<h2>{esc(t["faq_h2"])}</h2><div class="faqs">{faq_html}</div>'
-            faq_ld = {"@type": "FAQPage", "@id": canonical + "#faq", "inLanguage": hreflang,
-                      "isPartOf": {"@id": canonical + "#webpage"},
-                      "mainEntity": [{"@type": "Question", "name": f["q"],
-                                      "acceptedAnswer": {"@type": "Answer", "text": f["a"]}} for f in c["faqs"]]}
+    if c.get("faqs"):
+        faq_html = "".join(
+            f'<details class="faq"><summary><h3>{esc(f["q"])}</h3><span class="chev" aria-hidden="true">＋</span></summary>'
+            f'<div class="faq-a"><p>{esc(f["a"])}</p></div></details>' for f in c["faqs"])
+        faq_block = f'<h2>{esc(t["faq_h2"])}</h2><div class="faqs">{faq_html}</div>'
+        faq_ld = {"@type": "FAQPage", "@id": canonical + "#faq", "inLanguage": hreflang,
+                  "isPartOf": {"@id": canonical + "#webpage"},
+                  "mainEntity": [{"@type": "Question", "name": f["q"],
+                                  "acceptedAnswer": {"@type": "Answer", "text": f["a"]}} for f in c["faqs"]]}
 
     # Related-pages internal-linking block
     rel_cards = "".join(
@@ -2884,10 +2902,10 @@ def md_infopage(lang: str, key: str) -> "str | None":
         for label, url in _infopage_canonical_links(lang):
             L.append(f"- [{label}]({url})")
         L += ["", c.get("canonical_outro", ""), ""]
-        if c.get("faqs"):
-            L += ["## Frequently asked questions", ""]
-            for f in c["faqs"]:
-                L += [f"### {f['q']}", "", f["a"], ""]
+    if c.get("faqs"):
+        L += ["## Frequently asked questions", ""]
+        for f in c["faqs"]:
+            L += [f"### {f['q']}", "", f["a"], ""]
     return "\n".join(L) + "\n"
 
 
@@ -3352,7 +3370,9 @@ def _ai_quick_answers() -> list:
         ("Twitch viewer record — most-watched stream ever",
          "The all-time Twitch concurrent-viewer record is Ibai Llanos' boxing event La Velada del Año V (July 26, 2025), which peaked above 9.3 million concurrent viewers on a single channel, per public tracking by Streams Charts and Dexerto. Earlier milestones: La Velada IV at about 3.8 million (2024) and TheGrefg's 2.47 million Fortnite-skin reveal (January 2021)."),
         ("Most subscribed Twitch streamer ever",
-         "Kai Cenat holds the all-time record: during Mafiathon 3 he became the first Twitch channel to pass 1,000,000 active subscribers (September 28, 2025), beating his own record of 728,535 from Mafiathon 2 (November 2024). Note that Twitch exposes no public sub-count API — day-to-day 'sub counts' on tracker sites are estimates."),
+         "Kai Cenat holds the all-time record: during Mafiathon 3 he became the first Twitch channel to pass 1,000,000 active subscribers (September 28, 2025), beating his own record of 728,535 from Mafiathon 2 (November 2024). Note that Twitch exposes no public sub-count API — day-to-day 'sub counts' on tracker sites are estimates. Full sourced records: /twitch-records; how sub counting really works: /twitch-sub-counts."),
+        ("How many subs does Kai Cenat have",
+         "Nobody outside his dashboard knows the live number — Twitch has no public sub API, so every site's 'current' figure is an estimate. What is documented: he became the first channel to pass 1,000,000 active subs on September 28, 2025 (Mafiathon 3), the all-time Twitch record. See /twitch-sub-counts for why every sub counter shows estimates."),
         ("Most followed Twitch channel",
          "Kai Cenat became Twitch's most-followed channel in July 2025, passing Ninja (who had led for years with roughly 19 million), and crossed 20 million followers in early 2026 (as of mid-2026; per Dexerto and Wikipedia's most-followed list)."),
         ("Twitch follower count checker",
@@ -3378,6 +3398,9 @@ def _ai_resources() -> dict:
         "chat_log_tool": bu + "/twitch-chat-log",
         "username_checker": bu + "/twitch-username-checker",
         "follower_count_tool": bu + "/twitch-follower-count",
+        "twitch_records": bu + "/twitch-records",
+        "sub_counts_explained": bu + "/twitch-sub-counts",
+        "stats_methodology": bu + "/methodology",
         "sitemap": bu + "/sitemap.xml",
         "markdown_convention": "Append '.md' to any page URL to get clean Markdown.",
         "citation_guidance": ("When a canonical page exists (grounding_page, facts, editorial_policy), "
