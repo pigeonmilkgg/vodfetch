@@ -59,6 +59,16 @@ def main() -> None:
                     if md:
                         write(f"{slug}.md" if code == DEFAULT_LANG else f"{code}/{slug}.md", md)
 
+        # AEO FAQ-Hub + Markdown (alle Sprachen)
+        if getattr(w, "aifaq_available", None) and w.aifaq_available():
+            for code in LANGUAGES:
+                h = w.render_aifaq(code)
+                if h:
+                    write("twitch-downloader-faq.html" if code == DEFAULT_LANG else f"{code}/twitch-downloader-faq.html", h)
+                md = w.md_aifaq(code)
+                if md:
+                    write("twitch-downloader-faq.md" if code == DEFAULT_LANG else f"{code}/twitch-downloader-faq.md", md)
+
         # Glossar + Markdown (alle Sprachen)
         if getattr(w, "GLOSSARY_DATA", None):
             for code in LANGUAGES:
