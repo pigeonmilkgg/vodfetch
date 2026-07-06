@@ -395,6 +395,8 @@ def _footer(t: dict, lang: str) -> str:
         _ic = infopage_copy(lang, _k)
         if _ic:
             res.append(f'<a href="{esc(infopage_path(lang, _k))}">{esc(_ic["h1"])}</a>')
+    if STREAMER_PAGES:
+        res.append(f'<a href="/streamer">{esc(t.get("nav_streamers", "Streamer directory"))}</a>')
     res_line = (f'  <p class="footlinks">{" · ".join(res)}</p>\n') if res else ""
     # Alle Guides/Blogposts site-weit im Footer verlinken (Discoverability + internes Linking)
     guides_foot = ""
@@ -1670,7 +1672,7 @@ function getQ(k){try{return new URLSearchParams(location.search).get(k)}catch(e)
 function parseTwitchT(t){if(!t)return 0;var s=0;var m=String(t).match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/);if(m){s=(parseInt(m[1]||0))*3600+(parseInt(m[2]||0))*60+(parseInt(m[3]||0))}if(!s&&/^\d+$/.test(t))s=+t;return s}
 function addRecent(name){try{var k='twdl_recent';var a=JSON.parse(localStorage.getItem(k)||'[]');a.unshift({name:name,t:Date.now()});localStorage.setItem(k,JSON.stringify(a.slice(0,8)));renderRecent()}catch(e){}}
 function renderRecent(){try{var a=JSON.parse(localStorage.getItem('twdl_recent')||'[]');var box=G('recentBox');if(!box||!a.length)return;box.classList.remove('hidden');G('recentList').innerHTML=a.map(function(x){return '<li><b>'+eh(x.name)+'</b><span>'+new Date(x.t).toLocaleDateString()+'</span></li>'}).join('')}catch(e){}}
-function initClient(){if(typeof backend==='function'&&backend())return;try{renderRecent()}catch(e){}var u=getQ('url')||getQ('u');if(u){var inp=$('url');if(inp){inp.value=u;if(getQ('go')||getQ('autostart'))setTimeout(function(){analyze()},150)}}}
+function initClient(){if(typeof backend==='function'&&backend())return;try{renderRecent()}catch(e){}var u=getQ('url')||getQ('u')||(window.TWDL_BOOT||'');if(u){var inp=$('url');if(inp){inp.value=u;if(getQ('go')||getQ('autostart')||window.TWDL_BOOT)setTimeout(function(){analyze()},150)}}}
 function setupDrop(){var z=$('tool');if(!z)return;
   ['dragenter','dragover'].forEach(function(e){z.addEventListener(e,function(ev){ev.preventDefault();try{ev.dataTransfer.dropEffect='copy'}catch(_){}z.classList.add('dragover')})});
   z.addEventListener('dragleave',function(ev){if(!z.contains(ev.relatedTarget))z.classList.remove('dragover')});
@@ -2767,6 +2769,248 @@ def md_landing(lang: str, slug: str) -> "str | None":
 
 
 # --------------------------------------------------------------------------- #
+# Streamer-Entity-Pilot (T5): /streamer/{login} — sprach-gematcht, eine URL pro Streamer.
+# Shell = gemessene Fakten (Follower exakt + Datum); Hydration = bestehender Channel-Browser
+# (Auto-Boot via window.TWDL_BOOT → analyze()). Expansion nur mit GSC-Indexierungs-Beweis.
+# --------------------------------------------------------------------------- #
+from ._streamers import STREAMER_PAGES
+
+_ST_UI = {
+    "en": {
+        "sub": "VODs, top clips and live status — with free MP4 download.",
+        "facts": "{n} followers · checked {d}", "since": "on Twitch since {y}", "partner": "Twitch Partner",
+        "bio_h": "The channel's own description:",
+        "meta": "{name} on Twitch: {n} followers (checked {d}), current VODs with expiry estimates and top clips — each with a free MP4 download in your browser.",
+        "title_tail": "Twitch VODs, Clips & Live Check",
+        "faq_f_q": "How many followers does {name} have?",
+        "faq_f_a": "{n} followers, measured from Twitch's public API on {d}. Numbers move daily — check the live count with vodfetch's follower-count tool.",
+        "faq_dl_q": "Can I download {name}'s VODs and clips?",
+        "faq_dl_a": "Yes — the browser above lists the channel's current past broadcasts and most-viewed clips; every entry downloads as MP4, free, without a watermark and without an account. Public VODs only, for as long as Twitch still stores them.",
+        "faq_exp_q": "How long do {name}'s VODs stay online?",
+        "faq_exp_a_p": "As a Twitch Partner channel, past broadcasts are typically stored for up to 60 days, then deleted automatically. Clips don't expire. If you want to keep a stream, download it before the timer runs out.",
+        "faq_exp_a_np": "Twitch stores past broadcasts for 7 days on basic channels (up to 14 with Prime/Turbo, 60 for Partners), then deletes them automatically. Clips don't expire. If you want to keep a stream, download it in time.",
+        "rel_h": "More streamer pages", "dir_link": "All streamer pages →",
+        "note": "vodfetch is not affiliated with {name} or Twitch. Facts above: Twitch public API, {d}; live elements load in your browser.",
+    },
+    "de": {
+        "sub": "VODs, Top-Clips und Live-Status — mit kostenlosem MP4-Download.",
+        "facts": "{n} Follower · Stand {d}", "since": "auf Twitch seit {y}", "partner": "Twitch-Partner",
+        "bio_h": "Die eigene Kanalbeschreibung:",
+        "meta": "{name} auf Twitch: {n} Follower (Stand {d}), aktuelle VODs mit Ablauf-Schätzung und Top-Clips — jeweils mit kostenlosem MP4-Download im Browser.",
+        "title_tail": "Twitch VODs, Clips & Live-Check",
+        "faq_f_q": "Wie viele Follower hat {name}?",
+        "faq_f_a": "{n} Follower, gemessen über die öffentliche Twitch-API am {d}. Die Zahl bewegt sich täglich — die Live-Zahl zeigt dir vodfetchs Follower-Tool.",
+        "faq_dl_q": "Kann ich die VODs und Clips von {name} herunterladen?",
+        "faq_dl_a": "Ja — der Browser oben listet die aktuellen Übertragungen und meistgesehenen Clips des Kanals; jeder Eintrag lädt als MP4, kostenlos, ohne Wasserzeichen und ohne Account. Nur öffentliche VODs, solange Twitch sie noch speichert.",
+        "faq_exp_q": "Wie lange bleiben die VODs von {name} online?",
+        "faq_exp_a_p": "Als Twitch-Partner-Kanal bleiben vergangene Übertragungen in der Regel bis zu 60 Tage gespeichert und werden dann automatisch gelöscht. Clips verfallen nicht. Wer einen Stream behalten will, lädt ihn vorher herunter.",
+        "faq_exp_a_np": "Twitch speichert vergangene Übertragungen 7 Tage (bis zu 14 mit Prime/Turbo, 60 für Partner) und löscht sie dann automatisch. Clips verfallen nicht. Wer einen Stream behalten will, lädt ihn rechtzeitig herunter.",
+        "rel_h": "Weitere Streamer-Seiten", "dir_link": "Alle Streamer-Seiten →",
+        "note": "vodfetch ist nicht mit {name} oder Twitch verbunden. Fakten oben: öffentliche Twitch-API, {d}; Live-Elemente lädt dein Browser.",
+    },
+    "fr": {
+        "sub": "VOD, meilleurs clips et statut en direct — avec téléchargement MP4 gratuit.",
+        "facts": "{n} followers · vérifié le {d}", "since": "sur Twitch depuis {y}", "partner": "Partenaire Twitch",
+        "bio_h": "La description de la chaîne :",
+        "meta": "{name} sur Twitch : {n} followers (vérifié le {d}), VOD actuelles avec expiration estimée et meilleurs clips — chacun avec téléchargement MP4 gratuit.",
+        "title_tail": "VOD, clips & live Twitch",
+        "faq_f_q": "Combien de followers compte {name} ?",
+        "faq_f_a": "{n} followers, mesurés via l'API publique de Twitch le {d}. Le chiffre bouge chaque jour — vérifiez le total en direct avec l'outil followers de vodfetch.",
+        "faq_dl_q": "Puis-je télécharger les VOD et clips de {name} ?",
+        "faq_dl_a": "Oui — le navigateur ci-dessus liste les diffusions passées et les clips les plus vus de la chaîne ; chaque entrée se télécharge en MP4, gratuitement, sans filigrane et sans compte. VOD publiques uniquement, tant que Twitch les conserve.",
+        "faq_exp_q": "Combien de temps les VOD de {name} restent-elles en ligne ?",
+        "faq_exp_a_p": "Chaîne Partenaire Twitch : les diffusions passées sont généralement conservées jusqu'à 60 jours, puis supprimées automatiquement. Les clips n'expirent pas. Pour garder un stream, téléchargez-le avant l'échéance.",
+        "faq_exp_a_np": "Twitch conserve les diffusions passées 7 jours (jusqu'à 14 avec Prime/Turbo, 60 pour les Partenaires), puis les supprime automatiquement. Les clips n'expirent pas. Pour garder un stream, téléchargez-le à temps.",
+        "rel_h": "Autres pages streamers", "dir_link": "Toutes les pages streamers →",
+        "note": "vodfetch n'est affilié ni à {name} ni à Twitch. Données : API publique de Twitch, {d} ; les éléments en direct se chargent dans votre navigateur.",
+    },
+    "es": {
+        "sub": "VOD, mejores clips y estado en directo — con descarga MP4 gratuita.",
+        "facts": "{n} seguidores · comprobado el {d}", "since": "en Twitch desde {y}", "partner": "Partner de Twitch",
+        "bio_h": "La descripción del propio canal:",
+        "meta": "{name} en Twitch: {n} seguidores (comprobado el {d}), VOD actuales con caducidad estimada y mejores clips — cada uno con descarga MP4 gratuita.",
+        "title_tail": "VOD, clips y directo de Twitch",
+        "faq_f_q": "¿Cuántos seguidores tiene {name}?",
+        "faq_f_a": "{n} seguidores, medidos con la API pública de Twitch el {d}. La cifra cambia a diario — consulta el total en vivo con la herramienta de seguidores de vodfetch.",
+        "faq_dl_q": "¿Puedo descargar los VOD y clips de {name}?",
+        "faq_dl_a": "Sí — el navegador de arriba lista las emisiones pasadas y los clips más vistos del canal; cada entrada se descarga como MP4, gratis, sin marca de agua y sin cuenta. Solo VOD públicos, mientras Twitch los conserve.",
+        "faq_exp_q": "¿Cuánto tiempo permanecen online los VOD de {name}?",
+        "faq_exp_a_p": "Como canal Partner de Twitch, las emisiones pasadas se conservan normalmente hasta 60 días y luego se borran automáticamente. Los clips no caducan. Si quieres conservar un stream, descárgalo antes de que expire.",
+        "faq_exp_a_np": "Twitch conserva las emisiones pasadas 7 días (hasta 14 con Prime/Turbo, 60 para Partners) y luego las borra automáticamente. Los clips no caducan. Si quieres conservar un stream, descárgalo a tiempo.",
+        "rel_h": "Más páginas de streamers", "dir_link": "Todas las páginas de streamers →",
+        "note": "vodfetch no está afiliado a {name} ni a Twitch. Datos: API pública de Twitch, {d}; los elementos en vivo se cargan en tu navegador.",
+    },
+}
+_ST_DATE = {"en": "July 6, 2026", "de": "6. Juli 2026", "fr": "6 juillet 2026", "es": "6 de julio de 2026"}
+
+
+def _st_fmt(n: int, lang: str) -> str:
+    s = f"{n:,}"
+    if lang in ("de", "es"):
+        return s.replace(",", ".")
+    if lang == "fr":
+        return s.replace(",", " ")
+    return s
+
+
+def render_streamer(login: str) -> "str | None":
+    d = STREAMER_PAGES.get(login)
+    if not d:
+        return None
+    lang = d["lang"]
+    ui = _ST_UI[lang]
+    t = get_strings(lang)
+    bu = base_url()
+    canonical = f"{bu}/streamer/{login}"
+    hreflang = LANGUAGES[lang]["hreflang"]
+    name = d["name"]
+    n_fmt = _st_fmt(d["followers"], lang)
+    dtxt = _ST_DATE[lang]
+    title = f"{name} — {ui['title_tail']}"
+    meta = ui["meta"].format(name=name, n=n_fmt, d=dtxt)
+    faqs = [
+        {"q": ui["faq_f_q"].format(name=name), "a": ui["faq_f_a"].format(n=n_fmt, d=dtxt)},
+        {"q": ui["faq_dl_q"].format(name=name), "a": ui["faq_dl_a"].format(name=name)},
+        {"q": ui["faq_exp_q"].format(name=name),
+         "a": ui["faq_exp_a_p"] if d["partner"] else ui["faq_exp_a_np"]},
+    ]
+    facts_bits = [ui["facts"].format(n=n_fmt, d=dtxt), ui["since"].format(y=d["created"][:4])]
+    badges = f' <span class="unbadge">{esc(ui["partner"])}</span>' if d["partner"] else ""
+    bio_block = (f'<p class="cbnote">{esc(ui["bio_h"])} „{esc(d["bio"])}“</p>'
+                 if d.get("bio") else "")
+    # Verwandte Streamer (gleiche Sprache, nach Followern benachbart)
+    same = [(l2, s2) for l2, s2 in STREAMER_PAGES.items() if s2["lang"] == lang and l2 != login]
+    same.sort(key=lambda kv: abs(kv[1]["followers"] - d["followers"]))
+    rel_cards = "".join(
+        f'<article class="card"><h3><a href="/streamer/{esc(l2)}">{esc(s2["name"])}</a></h3>'
+        f'<p>{esc(_st_fmt(s2["followers"], lang))} {"Follower" if lang == "de" else ("followers" if lang in ("en", "fr") else "seguidores")}</p></article>'
+        for l2, s2 in same[:4])
+    guides = "".join(
+        f'<article class="card"><h3><a href="{esc(blog_post_path(lang, b))}">{esc(bd["title"])}</a></h3></article>'
+        for b in ("how-to-use-a-twitch-downloader", "download-twitch-vod-before-deleted")
+        for bd in [blog_post_data(b, lang)] if bd)
+    faq_html = "".join(
+        f'<details class="faq"><summary><h3>{esc(f["q"])}</h3><span class="chev" aria-hidden="true">＋</span></summary>'
+        f'<div class="faq-a"><p>{esc(f["a"])}</p></div></details>' for f in faqs)
+
+    page_id = canonical + "#webpage"
+    person = {"@type": "Organization" if d.get("org") else "Person", "@id": canonical + "#entity",
+              "name": name, "alternateName": login,
+              "url": f"https://www.twitch.tv/{login}",
+              "sameAs": [f"https://www.twitch.tv/{login}"], "identifier": login}
+    webpage = {"@type": ["WebPage", "ProfilePage"], "@id": page_id, "url": canonical,
+               "name": title, "description": meta, "inLanguage": hreflang,
+               "dateModified": BUILD_DATE, "isPartOf": _ref("/#website"),
+               "about": {"@id": canonical + "#entity"}, "mainEntity": {"@id": canonical + "#entity"},
+               "publisher": _ref("/#organization"), "breadcrumb": {"@id": canonical + "#breadcrumb"},
+               "speakable": {"@type": "SpeakableSpecification", "cssSelector": ["h1", ".answer"]}}
+    faqld = {"@type": "FAQPage", "@id": canonical + "#faq", "inLanguage": hreflang,
+             "isPartOf": {"@id": page_id},
+             "mainEntity": [{"@type": "Question", "name": f["q"],
+                             "acceptedAnswer": {"@type": "Answer", "text": f["a"]}} for f in faqs]}
+    crumbs = {"@type": "BreadcrumbList", "@id": canonical + "#breadcrumb", "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": BRAND, "item": bu + lang_path(lang)},
+        {"@type": "ListItem", "position": 2, "name": "Streamer", "item": bu + "/streamer"},
+        {"@type": "ListItem", "position": 3, "name": name, "item": canonical}]}
+    jsonld = _jsonld_tags([_org_node(t), _logo_node(), _website_node(), person, webpage, faqld, crumbs])
+    head = _head(lang, title=title, description=meta, keywords=t["meta_keywords"],
+                 canonical=canonical, alt_pairs=[("x-default", canonical), (hreflang, canonical)],
+                 jsonld=jsonld, og_type="profile", md_href=md_href_for(f"/streamer/{login}"))
+    body = f"""{_topbar(t, lang)}
+<main>
+  <article class="article">
+    <nav class="crumbs"><a href="{esc(lang_path(lang))}">{esc(BRAND)}</a> › <a href="/streamer">Streamer</a> › <span>{esc(name)}</span></nav>
+    <h1>{esc(name)}{badges}</h1>
+    <p class="cbnote">{esc(" · ".join(facts_bits))}</p>
+    <p class="answer">{esc(d["blurb"])}</p>
+    {bio_block}
+    <script>window.TWDL_BOOT={json.dumps(login)};</script>
+{_tool_card_html(t, lang)}
+    <h2>{esc(t["faq_h2"])}</h2><div class="faqs">{faq_html}</div>
+    <section class="block"><h2>{esc(ui["rel_h"])}</h2><div class="cards">{rel_cards}{guides}</div>
+      <p style="margin-top:14px"><a class="readlink" href="/streamer">{esc(ui["dir_link"])}</a></p></section>
+    <p class="disclaimer">{esc(ui["note"].format(name=name, d=dtxt))}</p>
+  </article>
+</main>
+{_footer(t, lang)}"""
+    return _document(lang, head, body, tool_js=True)
+
+
+def md_streamer(login: str) -> "str | None":
+    d = STREAMER_PAGES.get(login)
+    if not d:
+        return None
+    lang, ui, bu = d["lang"], _ST_UI[d["lang"]], base_url()
+    n_fmt, dtxt = _st_fmt(d["followers"], lang), _ST_DATE[lang]
+    L = [f"# {d['name']}", "", f"> {ui['sub']}", "",
+         f"Source: {bu}/streamer/{login}  ·  Data: Twitch public API, {dtxt}.", "",
+         d["blurb"], "",
+         f"- {ui['facts'].format(n=n_fmt, d=dtxt)}",
+         f"- {ui['since'].format(y=d['created'][:4])}"
+         + (f"\n- {ui['partner']}" if d["partner"] else ""), ""]
+    L += [f"## {ui['faq_f_q'].format(name=d['name'])}", "", ui["faq_f_a"].format(n=n_fmt, d=dtxt), ""]
+    return "\n".join(L) + "\n"
+
+
+def render_streamer_index() -> str:
+    lang = DEFAULT_LANG
+    t = get_strings(lang)
+    bu = base_url()
+    canonical = bu + "/streamer"
+    title = "Twitch Streamer Directory — VODs, Clips & Live Checks"
+    meta = ("Curated streamer pages with measured follower counts, current VODs (incl. expiry estimates) "
+            "and top clips — each downloadable as MP4, free and in your browser.")
+    groups = {"en": "English", "de": "Deutsch", "fr": "Français", "es": "Español"}
+    secs = []
+    for code, label in groups.items():
+        items = sorted(((l, s) for l, s in STREAMER_PAGES.items() if s["lang"] == code),
+                       key=lambda kv: -kv[1]["followers"])
+        if not items:
+            continue
+        cards = "".join(
+            f'<article class="card"><h3><a href="/streamer/{esc(l)}">{esc(s["name"])}</a></h3>'
+            f'<p>{esc(_st_fmt(s["followers"], code))} followers</p></article>' for l, s in items)
+        secs.append(f'<section class="block"><h2>{esc(label)} ({len(items)})</h2><div class="cards">{cards}</div></section>')
+    page_id = canonical + "#webpage"
+    webpage = {"@type": "CollectionPage", "@id": page_id, "url": canonical, "name": title,
+               "description": meta, "inLanguage": "en", "dateModified": BUILD_DATE,
+               "isPartOf": _ref("/#website"), "publisher": _ref("/#organization"),
+               "breadcrumb": {"@id": canonical + "#breadcrumb"}}
+    crumbs = {"@type": "BreadcrumbList", "@id": canonical + "#breadcrumb", "itemListElement": [
+        {"@type": "ListItem", "position": 1, "name": BRAND, "item": bu + "/"},
+        {"@type": "ListItem", "position": 2, "name": "Streamer", "item": canonical}]}
+    jsonld = _jsonld_tags([_org_node(t), _logo_node(), _website_node(), webpage, crumbs])
+    head = _head(lang, title=title, description=meta, keywords=t["meta_keywords"],
+                 canonical=canonical, alt_pairs=[("x-default", canonical), ("en", canonical)],
+                 jsonld=jsonld, og_type="website", md_href=md_href_for("/streamer"))
+    intro = ("Every page in this directory is built the same honest way: follower counts measured from "
+             "Twitch's public API with a visible date, the channel's current VODs with expiry estimates, "
+             "and its most-viewed clips — each with a free MP4 download. Live data loads in your browser; "
+             "how we measure is documented on the methodology page.")
+    body = f"""{_topbar(t, lang)}
+<main>
+  <article class="article">
+    <nav class="crumbs"><a href="/">{esc(BRAND)}</a> › <span>Streamer</span></nav>
+    <h1>Twitch Streamer Directory</h1>
+    <p class="answer">{esc(intro)}</p>
+    <p><a class="readlink" href="/methodology">How this data is measured →</a></p>
+    {"".join(secs)}
+  </article>
+</main>
+{_footer(t, lang)}"""
+    return _document(lang, head, body, tool_js=False)
+
+
+def md_streamer_index() -> str:
+    bu = base_url()
+    L = ["# Twitch Streamer Directory", "",
+         f"Source: {bu}/streamer  ·  Measured follower counts + VOD/clip downloads per channel.", ""]
+    for l, s in sorted(STREAMER_PAGES.items(), key=lambda kv: -kv[1]["followers"]):
+        L.append(f"- [{s['name']}]({bu}/streamer/{l}) — {s['followers']:,} followers ({s['lang']})")
+    return "\n".join(L) + "\n"
+
+
+# --------------------------------------------------------------------------- #
 # Static info pages: Editorial & Honesty Policy + Colophon (how the site is built)
 # --------------------------------------------------------------------------- #
 INFO_PAGE_SLUGS = {"editorial": "editorial-policy", "colophon": "how-this-site-is-built",
@@ -3347,6 +3591,12 @@ def build_sitemap() -> str:
     for _key in infopage_keys():
         for code in LANGUAGES:
             entries.append(_sitemap_entry(bu + infopage_path(code, _key), _infopage_alt_pairs(_key), "0.5"))
+    # Streamer-Entity-Pilot (T5): eine URL pro Streamer, sprach-gematcht
+    if STREAMER_PAGES:
+        entries.append(_sitemap_entry(bu + "/streamer", [("x-default", bu + "/streamer")], "0.6"))
+        for _login in STREAMER_PAGES:
+            _u = bu + "/streamer/" + _login
+            entries.append(_sitemap_entry(_u, [("x-default", _u)], "0.6"))
     # AEO FAQ-Hub (alle Sprachen)
     if aifaq_available():
         for code in LANGUAGES:
@@ -3472,6 +3722,7 @@ def _ai_resources() -> dict:
         "twitch_records": bu + "/twitch-records",
         "sub_counts_explained": bu + "/twitch-sub-counts",
         "stats_methodology": bu + "/methodology",
+        "streamer_directory": bu + "/streamer",
         "sitemap": bu + "/sitemap.xml",
         "markdown_convention": "Append '.md' to any page URL to get clean Markdown.",
         "citation_guidance": ("When a canonical page exists (grounding_page, facts, editorial_policy), "

@@ -111,6 +111,16 @@ def main() -> None:
                     if md:
                         write(f"{slug}.md" if code == DEFAULT_LANG else f"{code}/{slug}.md", md)
 
+        # Streamer-Entity-Pilot (T5): sprach-gematcht, eine URL pro Streamer
+        if getattr(w, "STREAMER_PAGES", None):
+            write("streamer.html", w.render_streamer_index())
+            write("streamer.md", w.md_streamer_index())
+            for login in w.STREAMER_PAGES:
+                h = w.render_streamer(login)
+                if h:
+                    write(f"streamer/{login}.html", h)
+                    write(f"streamer/{login}.md", w.md_streamer(login) or "")
+
         # Blog-Index + Markdown
         for code in LANGUAGES:
             write("blog.html" if code == DEFAULT_LANG else f"{code}/blog.html",
