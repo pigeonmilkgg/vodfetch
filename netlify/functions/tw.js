@@ -8,6 +8,37 @@
 // durch) → durchgehend ~5 Invocations/s, laufende Netlify-Kosten. Jetzt gilt:
 // nur Requests mit unserem Origin ODER unserem Referer werden bedient.
 
+const crypto = require("crypto");
+
+// Signiertes, ablaufendes Ticket (HMAC mit Server-Secret TW_SECRET). Der statische
+// Client holt sich per /api/tw?ticket=1 ein kurzlebiges Ticket und hängt es als &t=
+// an JEDEN Proxy-Request. Fremd-Scripts, die /api/tw?url=… ohne gültiges Ticket
+// aufrufen (der bisherige Abuse), werden abgewiesen — ein Referer ist fälschbar,
+// ein HMAC nicht. Fail-open: ist TW_SECRET NICHT gesetzt, wird die Ticket-Prüfung
+// übersprungen (ein fehlendes Env-Var darf die Live-Site niemals lahmlegen).
+const TW_SECRET = process.env.TW_SECRET || "";
+const TICKET_TTL_MS = 24 * 60 * 60 * 1000; // 24h — deckt auch lange VOD-/Live-Downloads
+function twSign(exp) {
+  return crypto.createHmac("sha256", TW_SECRET).update(String(exp)).digest("hex").slice(0, 32);
+}
+function twMintTicket() {
+  const exp = Date.now() + TICKET_TTL_MS;
+  return { t: exp + "." + twSign(exp), exp };
+}
+function twValidTicket(t) {
+  if (!TW_SECRET) return true; // nicht konfiguriert → nicht blockieren (fail-open)
+  if (!t || typeof t !== "string") return false;
+  const i = t.indexOf(".");
+  if (i < 1) return false;
+  const exp = Number(t.slice(0, i));
+  const sig = t.slice(i + 1);
+  if (!Number.isFinite(exp) || exp < Date.now()) return false;
+  if (exp > Date.now() + TICKET_TTL_MS + 60_000) return false; // keine Zukunfts-Fälschung
+  const good = twSign(exp);
+  if (!sig || sig.length !== good.length) return false;
+  try { return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(good)); } catch (e) { return false; }
+}
+
 const ALLOW_EXACT = new Set([
   "usher.ttvnw.net",
 ]);
@@ -106,6 +137,21 @@ exports.handler = async (event) => {
   // Dauer-Flut einer einzelnen IP drosseln.
   if (rateLimited(ip)) {
     return { statusCode: 429, headers: { ...CORS, "Retry-After": "30" }, body: "rate limited" };
+  }
+
+  // Ticket-Ausgabe: winzige JSON-Antwort, KEIN Upstream / keine Bandbreite. Nur eigene Seite.
+  if (event.queryStringParameters && event.queryStringParameters.ticket) {
+    return {
+      statusCode: 200,
+      headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" },
+      body: JSON.stringify(twMintTicket()),
+    };
+  }
+
+  // Proxy-Requests brauchen ein gültiges Ticket → stoppt Referer-gespoofte Fremd-Scripts.
+  const ticket = event.queryStringParameters && event.queryStringParameters.t;
+  if (!twValidTicket(ticket)) {
+    return { statusCode: 403, headers: { "Vary": "Origin, Referer" }, body: "forbidden" };
   }
 
   const target = event.queryStringParameters && event.queryStringParameters.url;

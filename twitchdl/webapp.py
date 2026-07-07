@@ -1410,7 +1410,13 @@ const TW_CID='kimne78kx3ncx6brgo4mv6wki5h1ko';
 let clientRef=null,clientQ=[],clientStop=false,clientMedia={},curFmt='mp4',trim={on:false,start:0,end:0},totalDur=0;
 let curMeta=null,storyboard=null,scrubDrag=null,microTimer=null,microIdx=0;
 /* Medien-Proxy-Basis: Cloudflare-Worker (window.TWDL_PROXY) oder Fallback /api/tw (Netlify). */
-function P(u){var b=window.TWDL_PROXY||'';return (b?b+'/?url=':'/api/tw?url=')+encodeURIComponent(u)}
+/* Signiertes Ticket gegen Proxy-Abuse: einmal holen (bei Analyse/Download), an jeden
+   /api/tw-Request als &t= hängen. Ohne gültiges Ticket weist die Function ab (403). */
+var _twTk=null,_twTkExp=0;
+async function twTicket(){var now=Date.now();if(_twTk&&now<_twTkExp-7200000)return _twTk;
+  try{var r=await fetch('/api/tw?ticket=1',{cache:'no-store'});if(r.ok){var j=await r.json();if(j&&j.t){_twTk=j.t;_twTkExp=j.exp||(now+86400000)}}}catch(e){}return _twTk}
+function P(u){var b=window.TWDL_PROXY||'';if(b)return b+'/?url='+encodeURIComponent(u);
+  var s='/api/tw?url='+encodeURIComponent(u);return _twTk?s+'&t='+encodeURIComponent(_twTk):s}
 function G(id){return document.getElementById(id)}
 function eh(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
@@ -1480,7 +1486,7 @@ async function loadMedia(idx){
   if(clientMedia[idx])return clientMedia[idx];
   var q=clientQ[idx];var r=await fetch(P(q.url));if(!r.ok)throw new Error('Playlist HTTP '+r.status);
   var m=parseMedia(await r.text(),baseOf(q.url));clientMedia[idx]=m;return m}
-async function clientAnalyze(){var b=$('analyzeBtn');b.disabled=true;b.textContent=I18N.analyzing;startMicro();
+async function clientAnalyze(){var b=$('analyzeBtn');b.disabled=true;b.textContent=I18N.analyzing;startMicro();await twTicket();
   ['resultCard','progressCard','channelBox'].forEach(function(i){if(G(i))G(i).classList.add('hidden')});
   try{var ref=parseInput($('url').value);clientRef=ref;curKind=ref.kind;clientMedia={};storyboard=null;
     var info;
@@ -1543,7 +1549,7 @@ async function ensureGifenc(){if(!(window.gifenc&&window.gifenc.GIFEncoder)){try
 function makeMux(){var tm=new muxjs.mp4.Transmuxer({remux:true,keepOriginalTimestamps:true});var out=[];
   tm.on('data',function(seg){out.push(seg.initSegment);out.push(seg.data)});
   return{push:function(b){tm.push(b)},finish:function(){tm.flush();return out}}}
-async function clientDownload(){if(!clientRef)return;var q=curQ();if(!q)return;
+async function clientDownload(){if(!clientRef)return;var q=curQ();if(!q)return;await twTicket();
   $('downloadBtn').disabled=true;$('progressCard').classList.remove('hidden','ok');$('log').innerHTML='';$('barFill').style.width='0%';$('statLeft').textContent='';$('statRight').textContent='';$('barFill').parentElement.classList.remove('pulse');clientStop=false;startMicro();
   var name=($('filename').value.trim()?safeName($('filename').value.trim()):smartName(q));
   try{if(clientRef.kind==='clip')await dlClip(q,name);else await dlSegments(clientRef,q,name);}
