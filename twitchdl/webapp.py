@@ -1411,7 +1411,10 @@ function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
 function safeName(s){return (String(s||'twitch').replace(/[\\/:*?"<>|]+/g,'_').replace(/\s+/g,' ').trim().slice(0,120))||'twitch'}
 function saveBlob(blob,name){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},2000)}
 function parseTime(s){s=String(s||'').trim();if(/^\d+(\.\d+)?$/.test(s))return parseFloat(s);var p=s.split(':').map(Number);if(p.some(isNaN))return 0;var t=0;for(var i=0;i<p.length;i++)t=t*60+p[i];return t}
-async function gqlReq(body){var r=await fetch(P('https://gql.twitch.tv/gql'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error('GraphQL HTTP '+r.status);return r.json()}
+/* GraphQL geht DIREKT an gql.twitch.tv (ACAO:* — CORS-offen), NICHT über /api/tw.
+   Spart die teure Netlify-Function für Tokens/Metadaten/Channel-Browse/Chat/Clips.
+   Der Proxy bleibt nur für Medien-Hosts (usher/Segmente/Clip-MP4), die kein CORS senden. */
+async function gqlReq(body){var r=await fetch('https://gql.twitch.tv/gql',{method:'POST',headers:{'Client-ID':'kimne78kx3ncx6brgo4mv6wki5h1ko','Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error('GraphQL HTTP '+r.status);return r.json()}
 function parseInput(raw){raw=(raw||'').trim();if(!raw)throw new Error('Enter a Twitch URL');
   if(!/[\/.]/.test(raw)){if(/^v?\d{6,}$/.test(raw))return{kind:'vod',id:raw.replace(/^v/,'')};
     if(/^[A-Za-z0-9_-]{6,}$/.test(raw)&&raw.indexOf('-')>=0)return{kind:'clip',id:raw};
@@ -1708,7 +1711,11 @@ function getQ(k){try{return new URLSearchParams(location.search).get(k)}catch(e)
 function parseTwitchT(t){if(!t)return 0;var s=0;var m=String(t).match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/);if(m){s=(parseInt(m[1]||0))*3600+(parseInt(m[2]||0))*60+(parseInt(m[3]||0))}if(!s&&/^\d+$/.test(t))s=+t;return s}
 function addRecent(name){try{var k='twdl_recent';var a=JSON.parse(localStorage.getItem(k)||'[]');a.unshift({name:name,t:Date.now()});localStorage.setItem(k,JSON.stringify(a.slice(0,8)));renderRecent()}catch(e){}}
 function renderRecent(){try{var a=JSON.parse(localStorage.getItem('twdl_recent')||'[]');var box=G('recentBox');if(!box||!a.length)return;box.classList.remove('hidden');G('recentList').innerHTML=a.map(function(x){return '<li><b>'+eh(x.name)+'</b><span>'+new Date(x.t).toLocaleDateString()+'</span></li>'}).join('')}catch(e){}}
-function initClient(){if(typeof backend==='function'&&backend())return;try{renderRecent()}catch(e){}var u=getQ('url')||getQ('u')||(window.TWDL_BOOT||'');if(u){var inp=$('url');if(inp){inp.value=u;if(getQ('go')||getQ('autostart')||window.TWDL_BOOT)setTimeout(function(){analyze()},150)}}}
+function initClient(){if(typeof backend==='function'&&backend())return;try{renderRecent()}catch(e){}
+  /* Streamer-Seiten (TWDL_BOOT) NUR vorbefüllen — kein Auto-analyze, sonst feuert jeder
+     Crawler-Render eine GraphQL-Abfrage. Explizite ?url&go-Links laufen weiter automatisch. */
+  var boot=window.TWDL_BOOT||'';if(boot){var bi=$('url');if(bi)bi.value=boot}
+  var u=getQ('url')||getQ('u');if(u){var inp=$('url');if(inp){inp.value=u;if(getQ('go')||getQ('autostart'))setTimeout(function(){analyze()},150)}}}
 function setupDrop(){var z=$('tool');if(!z)return;
   ['dragenter','dragover'].forEach(function(e){z.addEventListener(e,function(ev){ev.preventDefault();try{ev.dataTransfer.dropEffect='copy'}catch(_){}z.classList.add('dragover')})});
   z.addEventListener('dragleave',function(ev){if(!z.contains(ev.relatedTarget))z.classList.remove('dragover')});
@@ -1727,13 +1734,7 @@ if(_urlInp){
   _urlInp.addEventListener('keydown',function(e){if(e.key==='Enter')analyze()});
   _urlInp.addEventListener('paste',function(){setTimeout(function(){if(($('url').value||'').trim().length>5)analyze()},80)});
 }
-async function gqlStats(body){
-  try{
-    var r=await fetch('https://gql.twitch.tv/gql',{method:'POST',headers:{'Client-ID':'kimne78kx3ncx6brgo4mv6wki5h1ko','Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(!r.ok)throw new Error('http '+r.status);
-    return await r.json();
-  }catch(e){return await gqlReq(body)}
-}
+async function gqlStats(body){return await gqlReq(body)} /* beide direkt an gql.twitch.tv */
 function cbPeriodBtns(active){var P=[['LAST_DAY',I18N.cbPDay||'Today'],['LAST_WEEK',I18N.cbPWeek||'This week'],['LAST_MONTH',I18N.cbPMonth||'This month'],['ALL_TIME',I18N.cbPAll||'All time']];
   return P.map(function(p){return '<button type="button" data-p="'+p[0]+'"'+(p[0]===active?' class="on"':'')+' onclick="cbClips(\''+p[0]+'\')">'+eh(p[1])+'</button>'}).join('')}
 async function cbClips(period){if(!cbLogin)return;var seg=G('cbPeriodSeg');if(seg)seg.innerHTML=cbPeriodBtns(period);
