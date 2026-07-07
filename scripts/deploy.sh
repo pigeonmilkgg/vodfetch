@@ -17,6 +17,12 @@ export TWITCHDL_BING_VERIFY="DD10C1E27169A8BD038386A868573443"
 # Lokale Secrets + Config laden (u.a. TWITCHDL_PROXY_BASE für den Cloudflare-Worker)
 if [ -f .env ]; then set -a; . ./.env; set +a; fi
 
+# Cloudflare-Worker als Medien-Proxy erzwingen (öffentliche URL, kein Secret). Verhindert,
+# dass ein Build ohne .env still auf die teure Netlify-Bandbreite zurückfällt. Über .env
+# oder die Umgebung überschreibbar; leeren, um bewusst auf /api/tw zurückzurollen.
+: "${TWITCHDL_PROXY_BASE:=https://vodfetch-proxy.gentle-salad-3beb.workers.dev}"
+export TWITCHDL_PROXY_BASE
+
 if [ -n "${TWITCHDL_PROXY_BASE:-}" ]; then
   echo "==> Medien-Proxy: Cloudflare Worker ($TWITCHDL_PROXY_BASE)"
 else
