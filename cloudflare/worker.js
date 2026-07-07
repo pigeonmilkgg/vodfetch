@@ -61,8 +61,34 @@ function rateLimited(ip) {
   return e.n > RL_MAX;
 }
 
+// HMAC-Ticket — IDENTISCH zu netlify/functions/tw.js, damit ein vom Client (egal wo)
+// gemintetes Ticket auf BEIDEN Proxys gilt. Secret via `wrangler secret put TW_SECRET`
+// (gleicher Wert wie das Netlify-Env-Var TW_SECRET).
+const TICKET_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+async function hmacHex(secret, msg) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(msg));
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+}
+async function mintTicket(secret) {
+  const exp = Date.now() + TICKET_TTL_MS;
+  return { t: exp + "." + (await hmacHex(secret, String(exp))), exp };
+}
+async function validTicket(secret, t) {
+  if (!secret) return true; // fail-open: kein Secret gesetzt → nicht blockieren
+  if (!t || typeof t !== "string") return false;
+  const i = t.indexOf("."); if (i < 1) return false;
+  const exp = Number(t.slice(0, i)); const sig = t.slice(i + 1);
+  if (!Number.isFinite(exp) || exp < Date.now()) return false;
+  if (exp > Date.now() + TICKET_TTL_MS + 60_000) return false;
+  const good = await hmacHex(secret, String(exp));
+  if (sig.length !== good.length) return false;
+  let d = 0; for (let k = 0; k < good.length; k++) d |= sig.charCodeAt(k) ^ good.charCodeAt(k);
+  return d === 0;
+}
+
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     const cors = corsHeaders(request);
 
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
@@ -73,7 +99,22 @@ export default {
     if (!fromOurSite(request)) return new Response("forbidden", { status: 403, headers: { Vary: "Origin, Referer" } });
     if (rateLimited(ip)) return new Response("rate limited", { status: 429, headers: { ...cors, "Retry-After": "30" } });
 
-    const target = new URL(request.url).searchParams.get("url");
+    const secret = (env && env.TW_SECRET) || "";
+    const params = new URL(request.url).searchParams;
+
+    // Ticket-Ausgabe (winzig, kein Upstream). Client kann Tickets hier ODER bei Netlify
+    // (/api/tw?ticket=1) holen — gleiches TW_SECRET, gleiche Gültigkeit.
+    if (params.get("ticket")) {
+      return new Response(JSON.stringify(await mintTicket(secret)), {
+        status: 200, headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" },
+      });
+    }
+    // Proxy braucht ein gültiges HMAC-Ticket → stoppt Referer-gespoofte Fremd-Scripts.
+    if (!(await validTicket(secret, params.get("t")))) {
+      return new Response("forbidden", { status: 403, headers: { Vary: "Origin, Referer" } });
+    }
+
+    const target = params.get("url");
     if (!target) return new Response("missing url", { status: 400, headers: cors });
 
     let u;

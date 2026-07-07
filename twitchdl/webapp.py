@@ -1412,11 +1412,13 @@ let curMeta=null,storyboard=null,scrubDrag=null,microTimer=null,microIdx=0;
 /* Medien-Proxy-Basis: Cloudflare-Worker (window.TWDL_PROXY) oder Fallback /api/tw (Netlify). */
 /* Signiertes Ticket gegen Proxy-Abuse: einmal holen (bei Analyse/Download), an jeden
    /api/tw-Request als &t= hängen. Ohne gültiges Ticket weist die Function ab (403). */
+/* Medien-Egress läuft über den Cloudflare-Worker (GRATIS Egress). Fällt window.TWDL_PROXY
+   weg, greift automatisch die Netlify-Function /api/tw. Beide prüfen dasselbe HMAC-Ticket. */
+window.TWDL_PROXY=window.TWDL_PROXY||'https://vodfetch-proxy.gentle-salad-3beb.workers.dev';
 var _twTk=null,_twTkExp=0;
 async function twTicket(){var now=Date.now();if(_twTk&&now<_twTkExp-7200000)return _twTk;
   try{var r=await fetch('/api/tw?ticket=1',{cache:'no-store'});if(r.ok){var j=await r.json();if(j&&j.t){_twTk=j.t;_twTkExp=j.exp||(now+86400000)}}}catch(e){}return _twTk}
-function P(u){var b=window.TWDL_PROXY||'';if(b)return b+'/?url='+encodeURIComponent(u);
-  var s='/api/tw?url='+encodeURIComponent(u);return _twTk?s+'&t='+encodeURIComponent(_twTk):s}
+function P(u){var b=window.TWDL_PROXY||'';var base=b?(b+'/?url='+encodeURIComponent(u)):('/api/tw?url='+encodeURIComponent(u));return _twTk?base+'&t='+encodeURIComponent(_twTk):base}
 function G(id){return document.getElementById(id)}
 function eh(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
