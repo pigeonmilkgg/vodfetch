@@ -43,6 +43,9 @@ INDEXNOW_KEY = os.environ.get("TWITCHDL_INDEXNOW_KEY", "ebcea84deab6403191d00d65
 GSC_VERIFY = os.environ.get("TWITCHDL_GSC_VERIFY", "")
 BING_VERIFY = os.environ.get("TWITCHDL_BING_VERIFY", "")
 REPO_URL = os.environ.get("TWITCHDL_REPO", "")
+# Cloudflare-Worker-Basis für den Medien-Proxy (z.B. https://vodfetch-proxy.<sub>.workers.dev).
+# Leer → Fallback auf die Netlify-Function /api/tw. Gesetzt → 100% Cloudflare (keine Netlify-Bandbreite).
+PROXY_BASE = (os.environ.get("TWITCHDL_PROXY_BASE", "") or "").rstrip("/")
 
 _ASSET_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_assets")
 
@@ -732,6 +735,8 @@ def _document(lang: str, head_inner: str, body_inner: str, tool_js: bool = False
             "tgStamp": t.get("tg_stamp", "Live from Twitch's public API — as of {time}."),
         }, ensure_ascii=False).replace("<", "\\u003c")
         flag = "window.TWITCHDL_HOSTED=false;" if STATIC_MODE else ""
+        if PROXY_BASE:
+            flag += f"window.TWDL_PROXY={json.dumps(PROXY_BASE)};"
         # mux.js + gifenc werden on-demand geladen (siehe ensureMux/ensureGifenc) — spart ~137 KB Initial-Load
         parts.append(f"<script>{flag}window.I18N={js_cfg};</script>")
         parts.append(f"<script>{JS}</script>")
@@ -1404,7 +1409,8 @@ async function stopJob(){if(!backend()){clientStop=true;$('stopBtn').disabled=tr
 const TW_CID='kimne78kx3ncx6brgo4mv6wki5h1ko';
 let clientRef=null,clientQ=[],clientStop=false,clientMedia={},curFmt='mp4',trim={on:false,start:0,end:0},totalDur=0;
 let curMeta=null,storyboard=null,scrubDrag=null,microTimer=null,microIdx=0;
-function P(u){return '/api/tw?url='+encodeURIComponent(u)}
+/* Medien-Proxy-Basis: Cloudflare-Worker (window.TWDL_PROXY) oder Fallback /api/tw (Netlify). */
+function P(u){var b=window.TWDL_PROXY||'';return (b?b+'/?url=':'/api/tw?url=')+encodeURIComponent(u)}
 function G(id){return document.getElementById(id)}
 function eh(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}

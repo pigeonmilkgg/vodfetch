@@ -1,0 +1,12 @@
+# vodfetch Medien-Proxy — Cloudflare Worker Config.
+# Deploy: siehe scripts/deploy-worker.sh (einmalig `npx wrangler login`, dann deploy).
+name = "vodfetch-proxy"
+main = "worker.js"
+compatibility_date = "2026-07-01"
+
+# workers.dev-Subdomain aktiv lassen (kein DNS-Umzug nötig; Domain bleibt bei Netlify/NS1).
+workers_dev = true
+
+# Kein Cron, keine Bindings — reiner zustandsloser Streaming-Proxy.
+[observability]
+enabled = true

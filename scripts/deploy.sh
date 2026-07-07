@@ -14,8 +14,14 @@ export TWITCHDL_SAMEAS="https://github.com/pigeonmilkgg/vodfetch"
 export TWITCHDL_REPO="https://github.com/pigeonmilkgg/vodfetch"
 export TWITCHDL_BING_VERIFY="DD10C1E27169A8BD038386A868573443"
 
-# Lokale Secrets laden (nur für den Secret-Grep unten relevant; Build braucht keine)
+# Lokale Secrets + Config laden (u.a. TWITCHDL_PROXY_BASE für den Cloudflare-Worker)
 if [ -f .env ]; then set -a; . ./.env; set +a; fi
+
+if [ -n "${TWITCHDL_PROXY_BASE:-}" ]; then
+  echo "==> Medien-Proxy: Cloudflare Worker ($TWITCHDL_PROXY_BASE)"
+else
+  echo "==> Medien-Proxy: Netlify-Fallback /api/tw (TWITCHDL_PROXY_BASE nicht gesetzt)"
+fi
 
 echo "==> Build (alle Env-Vars gesetzt)"
 ./.venv/bin/python build_static.py
