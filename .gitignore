@@ -15,4 +15,5 @@ node_modules/
 .pytest_cache/
 
 # Cloudflare Wrangler local state
+.wrangler/
 cloudflare/.wrangler/
