@@ -49,6 +49,10 @@ PROXY_BASE = (os.environ.get("TWITCHDL_PROXY_BASE", "") or "").rstrip("/")
 # Google-AdSense-Publisher-ID (z.B. ca-pub-2059165850341947). Gesetzt → Ad-Script + ads.txt.
 # Öffentlich (steht im HTML), kein Secret. EU-Consent läuft über Googles eigenes Consent-Tool (Dashboard).
 ADSENSE_CLIENT = (os.environ.get("TWITCHDL_ADSENSE_CLIENT", "") or "").strip()
+# Slot-ID EINER responsiven Display-Ad-Unit (im AdSense-Dashboard anlegen, nur die Zahl).
+# Gesetzt → manuelle, kontrollierte In-Page-Slots (nie im Tool/Hero). Leer → keine manuellen Slots,
+# nur die Auto-Ads-Overlays. Dieselbe Slot-ID wird für alle Positionen wiederverwendet.
+ADSENSE_SLOT = (os.environ.get("TWITCHDL_ADSENSE_SLOT", "") or "").strip()
 
 _ASSET_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_assets")
 
@@ -675,6 +679,7 @@ def build_body(t: dict, lang: str) -> str:
     <div class="cards">{types_cards}</div>
   </section>
 {tools_section}
+  {_ad_slot(t, "home-mid")}
 
   <section id="features" class="block">
     <h2>{esc(t["features_h2"])}</h2>
@@ -686,11 +691,13 @@ def build_body(t: dict, lang: str) -> str:
     <ol class="steps">{how_steps}</ol>
   </section>
 
+  {_ad_slot(t, "home-mid2")}
   <section id="faq" class="block">
     <h2>{esc(t["faq_h2"])}</h2>
     <div class="faqs">{faqs}</div>
 {_faqhub_cta_html(t, lang)}  </section>
 {paa_section}{guides_section}{askai_section}
+  {_ad_slot(t, "home-low")}
   <p class="disclaimer">{esc(t["disclaimer"])}</p>
 </main>
 
@@ -968,10 +975,14 @@ def render_blog_post(lang: str, slug: str) -> "str | None":
     <p class="answer">{esc(d["excerpt"])}</p>
     {_minitool_html(lang)}
     {toc_html}
-    {"".join(sec_html)}
+    {sec_html[0] if sec_html else ""}
+    {_ad_slot(t, "blog-top")}
+    {"".join(sec_html[1:])}
     {steps_block}
+    {_ad_slot(t, "blog-mid")}
     {faq_block}
     {tool_cta}
+    {_ad_slot(t, "blog-low")}
     {faqhub_cta}
     <div class="cta">
       <h2>{esc(t["blog_cta_h"])}</h2>
@@ -1034,6 +1045,13 @@ CSS = r"""
 .cards .card:hover .goarr{transform:translateX(4px);color:var(--purple)}
 .stavatar{width:64px;height:64px;border-radius:50%;vertical-align:middle;margin-right:14px;
   border:2px solid var(--border)}
+/* Manuelle Ad-Slots: klar abgesetzt, Höhe reserviert (Anti-CLS), nie am Tool */
+.adslot{display:block;max-width:970px;margin:34px auto;padding:0;text-align:center;min-height:120px;
+  overflow:hidden;clear:both}
+.adslot .adlabel{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);opacity:.6;margin-bottom:6px}
+.adslot ins{display:block;min-height:90px}
+@media (min-width:800px){.adslot{min-height:280px}}
 .tghead{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .tgtable{width:100%;border-collapse:collapse;margin-top:6px}
 .tgtable th{text-align:left;font-size:13px;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--border)}
@@ -2328,9 +2346,11 @@ def render_compare(lang: str, slug: str) -> "str | None":
       <footer>— vodfetch · <button class="citelink" type="button" onclick="copyCite(this)" data-done="{esc(t.get("cite_done","Copied"))}">📋 {esc(t.get("cite_label","Cite / Copy for AI"))}</button></footer></blockquote>
     {table}
     <p class="cdisc">{esc(L["ui"]["disclaimer"])} ({esc(m.get("last_checked", BUILD_DATE))})</p>
+    {_ad_slot(t, "compare-mid")}
     {paras}
     <h2>{esc(L["ui"]["when_better_h"])}</h2><p>{esc(pr.get("when_better", ""))}</p>
     <h2>{esc(L["ui"]["verdict_h"])}</h2><p>{esc(pr.get("verdict", ""))}</p>
+    {_ad_slot(t, "compare-low")}
     {visit}
     {alt_link}
     <div class="cta"><h2>{esc(t["blog_cta_h"])}</h2><p>{esc(t["blog_cta_p"])}</p>
@@ -2714,6 +2734,21 @@ _STATS_ICONS = {"records": "🏆", "mostfollowed": "👑", "germanstreamers": "�
                 "methodology": "🔬"}
 
 
+def _ad_slot(t: dict, pos: str = "") -> str:
+    """Manueller AdSense-Slot — bewusst NUR in Content-Sektionen, NIE im Tool/Hero.
+    Reserviert Höhe (min-height) gegen Layout-Shift (CLS/INP-Schutz). Klar als
+    'Werbung' gekennzeichnet (AdSense-Policy). Rendert nichts, wenn Client/Slot fehlen."""
+    if not (ADSENSE_CLIENT and ADSENSE_SLOT):
+        return ""
+    label = esc(t.get("ad_label", "Advertisement"))
+    return (f'<aside class="adslot" data-pos="{esc(pos)}" aria-label="{label}">'
+            f'<span class="adlabel">{label}</span>'
+            f'<ins class="adsbygoogle" style="display:block" '
+            f'data-ad-client="{esc(ADSENSE_CLIENT)}" data-ad-slot="{esc(ADSENSE_SLOT)}" '
+            f'data-ad-format="auto" data-full-width-responsive="true"></ins>'
+            f'<script>(adsbygoogle=window.adsbygoogle||[]).push({{}});</script></aside>')
+
+
 def _card_html(href: str, title: str, desc: str, icon: str = "") -> str:
     chip = f'<div class="cicon" aria-hidden="true">{icon}</div>' if icon else ""
     return (f'<article class="card">{chip}<h3><a href="{esc(href)}">{esc(title)}</a></h3>'
@@ -2840,8 +2875,10 @@ def render_landing(lang: str, slug: str) -> "str | None":
   <section class="prose"><p>{esc(c["intro"])}</p></section>
   {features_block}
   <section id="how" class="block"><h2>{esc(t["how_h2"])}</h2><ol class="steps">{how_steps}</ol></section>
+  {_ad_slot(t, "landing-mid")}
   <section id="faq" class="block"><h2>{esc(t["faq_h2"])}</h2><div class="faqs">{faq_html}</div></section>
   {guides_block}
+  {_ad_slot(t, "landing-low")}
   {_whybox_html(lang)}
 {links_html}
   <p class="disclaimer">{esc(t["disclaimer"])}</p>
@@ -3027,6 +3064,7 @@ def render_streamer(login: str) -> "str | None":
     <script>window.TWDL_BOOT={json.dumps(login)};</script>
 {_tool_card_html(t, lang)}
     <h2>{esc(t["faq_h2"])}</h2><div class="faqs">{faq_html}</div>
+    {_ad_slot(t, "streamer-low")}
     <section class="block"><h2>{esc(ui["rel_h"])}</h2><div class="cards">{rel_cards}{guides}</div>
       <p style="margin-top:14px"><a class="readlink" href="/streamer">{esc(ui["dir_link"])}</a></p></section>
     <p class="disclaimer">{esc(ui["note"].format(name=name, d=dtxt))}</p>
@@ -3304,9 +3342,11 @@ def render_infopage(lang: str, key: str) -> "str | None":
     <h1>{esc(c["h1"])}</h1>
     <p class="answer">{esc(c["lead"])}</p>
     {list_block}
+    {_ad_slot(t, "info-top")}
     {secs}
     {canonical_block}
     {faq_block}
+    {_ad_slot(t, "info-low")}
     {related_block}
     <div class="cta"><h2>{esc(t["blog_cta_h"])}</h2><p>{esc(t["blog_cta_p"])}</p>
       <a class="ctabtn" href="{esc(lang_path(lang))}#tool">{esc(t["blog_cta_btn"])}</a></div>

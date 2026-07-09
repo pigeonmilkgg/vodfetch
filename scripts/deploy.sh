@@ -26,6 +26,14 @@ export TWITCHDL_PROXY_BASE
 # Google AdSense (öffentliche Publisher-ID, kein Secret). Leeren, um Ads bewusst abzuschalten.
 : "${TWITCHDL_ADSENSE_CLIENT:=ca-pub-2059165850341947}"
 export TWITCHDL_ADSENSE_CLIENT
+# Slot-ID einer responsiven Display-Ad-Unit (aus dem AdSense-Dashboard) für die manuellen,
+# kontrollierten In-Page-Slots. Kommt aus .env. Leer → nur Auto-Ads, keine manuellen Slots.
+export TWITCHDL_ADSENSE_SLOT
+if [ -n "${TWITCHDL_ADSENSE_SLOT:-}" ]; then
+  echo "==> AdSense: manuelle Slots AKTIV (slot $TWITCHDL_ADSENSE_SLOT) + Auto-Ads"
+else
+  echo "==> AdSense: nur Auto-Ads (TWITCHDL_ADSENSE_SLOT nicht gesetzt → keine manuellen Slots)"
+fi
 
 if [ -n "${TWITCHDL_PROXY_BASE:-}" ]; then
   echo "==> Medien-Proxy: Cloudflare Worker ($TWITCHDL_PROXY_BASE)"
