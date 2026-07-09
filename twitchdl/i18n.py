@@ -194,12 +194,12 @@ EN = {
         {"title": "Blazing fast",
          "desc": "Parallel segment downloading saturates your connection and rebuilds the "
                  "video in seconds, with automatic retries on errors."},
-        {"title": "Private by design",
-         "desc": "No sign-up and no tracking. The download runs in your browser; video is only "
-                 "relayed through a stateless proxy to satisfy browser security — nothing is stored."},
-        {"title": "No account, no ads",
-         "desc": "No Twitch login, no sign-up, no paywall and no ads. Just paste a link and "
-                 "download."},
+        {"title": "Private downloads",
+         "desc": "No sign-up. The download runs in your browser; video is only relayed through a "
+                 "stateless proxy to satisfy browser security — your files are never uploaded or stored."},
+        {"title": "No account, no install",
+         "desc": "No Twitch login, no sign-up and no paywall. Just paste a link and download — "
+                 "the site is free, kept running by ads."},
         {"title": "MP4 + quality choice",
          "desc": "Clean MP4 output ready for any player or editor, plus audio-only export and "
                  "exact quality selection."},
@@ -258,7 +258,7 @@ EN = {
         "Service and applicable copyright law. This tool only accesses publicly available "
         "content and does not bypass any paywall or DRM."
     ),
-    "footer_made": "Open-source Twitch downloader · Runs in your browser · No account, no tracking",
+    "footer_made": "Open-source Twitch downloader · Runs in your browser · No account, no watermark",
     "footer_links": "VODs · Clips · Live Streams · MP4",
 
     "nav_blog": "Blog",
@@ -281,7 +281,7 @@ EN = {
         {"heading": "How it works", "body": "Everything happens in your browser. When you paste a link, vodfetch reads Twitch's public playback data, fetches the video's small HLS segments (or a clip's MP4) through a lean proxy — which browsers require, because they won't let a web page fetch Twitch's CDN directly — and stitches them back into a single file on your device. On Chromium browsers it streams straight to disk, so even a multi-hour VOD doesn't have to fit in memory. The proxy is stateless: it relays bytes and keeps nothing."},
         {"heading": "Who it's for", "body": "vodfetch is built for the people who actually need their Twitch footage: streamers backing up their own VODs before Twitch's 7-to-60-day retention window deletes them, editors pulling clips for YouTube and TikTok, and archivists and researchers keeping a record of moments that would otherwise disappear. It works the same on Windows, macOS, Linux, Android and iOS, because it runs entirely in the browser — nothing to install and nothing platform-specific to maintain."},
         {"heading": "Open source and how it's funded", "body": "The whole tool is open source under the MIT license, so you don't have to take our word for how it behaves — you can read the code. It's built and maintained by one person as a side project, funded by a couple of small, non-intrusive ads rather than a subscription, a 'Pro' tier or selling data. That deliberately simple model is why there's no reason to trick anyone: the honest version is the whole product."},
-        {"heading": "Privacy & responsible use", "body": "There's no account and no tracking, and we don't store your downloads — video is only relayed through a stateless proxy that keeps nothing, purely to work around browser limits. Please use vodfetch only for content you own or have the right to save, for personal use, and always respect Twitch's Terms of Service and the original creator's copyright. How we decide what to publish across the whole site is written up in our editorial policy."},
+        {"heading": "Privacy & responsible use", "body": "There's no account, and we don't store your downloads — the video is only relayed through a stateless proxy that keeps nothing, purely to work around browser limits. The site is free and kept running by ads (Google AdSense), which set cookies; in the EU you'll see Google's consent prompt and can manage or decline personalized ads there. Please use vodfetch only for content you own or have the right to save, for personal use, and always respect Twitch's Terms of Service and the original creator's copyright. How we decide what to publish across the whole site is written up in our editorial policy."},
     ],
 }
 
@@ -450,13 +450,13 @@ DE = {
         {"title": "Extrem schnell",
          "desc": "Paralleler Segment-Download sättigt deine Leitung und baut das Video in "
                  "Sekunden zusammen — mit automatischen Wiederholungen bei Fehlern."},
-        {"title": "Privat by Design",
-         "desc": "Keine Anmeldung, kein Tracking. Der Download läuft in deinem Browser; das Video "
-                 "wird nur über einen zustandslosen Proxy weitergeleitet (wegen der Browser-Sicherheit) "
-                 "— nichts wird gespeichert."},
-        {"title": "Ohne Account, ohne Werbung",
-         "desc": "Kein Twitch-Login, keine Anmeldung, keine Paywall und keine Werbung. "
-                 "Einfach Link einfügen und herunterladen."},
+        {"title": "Privater Download",
+         "desc": "Keine Anmeldung. Der Download läuft in deinem Browser; das Video wird nur über "
+                 "einen zustandslosen Proxy weitergeleitet (wegen der Browser-Sicherheit) — deine "
+                 "Dateien werden nie hochgeladen oder gespeichert."},
+        {"title": "Ohne Account, ohne Installation",
+         "desc": "Kein Twitch-Login, keine Anmeldung, keine Paywall. Einfach Link einfügen und "
+                 "herunterladen — die Seite ist kostenlos und finanziert sich über Werbung."},
         {"title": "MP4 + Qualitätswahl",
          "desc": "Sauberes MP4 für jeden Player oder Editor, plus Audio-Export und exakte "
                  "Qualitätsauswahl."},
@@ -517,7 +517,7 @@ DE = {
         "greift ausschließlich auf öffentlich verfügbare Inhalte zu und umgeht keine "
         "Paywall und kein DRM."
     ),
-    "footer_made": "Open-Source Twitch Downloader · Läuft im Browser · Kein Account, kein Tracking",
+    "footer_made": "Open-Source Twitch Downloader · Läuft im Browser · Kein Account, kein Wasserzeichen",
     "footer_links": "VODs · Clips · Live-Streams · MP4",
 
     "nav_blog": "Blog",
@@ -540,7 +540,7 @@ DE = {
         {"heading": "Wie es funktioniert", "body": "Alles passiert in deinem Browser. Wenn du einen Link einfügst, liest vodfetch die öffentlichen Wiedergabedaten von Twitch, holt die kleinen HLS-Segmente des Videos (oder die MP4 eines Clips) über einen schlanken Proxy — den Browser verlangen, weil sie eine Webseite nicht direkt auf Twitchs CDN zugreifen lassen — und fügt sie auf deinem Gerät zu einer einzigen Datei zusammen. In Chromium-Browsern streamt es direkt auf die Festplatte, sodass selbst ein mehrstündiges VOD nicht in den Arbeitsspeicher passen muss. Der Proxy ist zustandslos: Er leitet Bytes weiter und speichert nichts."},
         {"heading": "Für wen es gedacht ist", "body": "vodfetch ist für die Leute gebaut, die ihre Twitch-Aufnahmen wirklich brauchen: Streamer, die ihre eigenen VODs sichern, bevor Twitchs 7-bis-60-Tage-Aufbewahrungsfenster sie löscht, Editoren, die Clips für YouTube und TikTok herausziehen, sowie Archivare und Forschende, die Momente festhalten, die sonst verschwinden würden. Es funktioniert gleich auf Windows, macOS, Linux, Android und iOS, weil es vollständig im Browser läuft — nichts zu installieren und nichts Plattformspezifisches zu pflegen."},
         {"heading": "Open Source und wie es finanziert wird", "body": "Das gesamte Tool ist Open Source unter der MIT-Lizenz, du musst uns also nicht glauben, wie es sich verhält — du kannst den Code lesen. Es wird von einer einzelnen Person als Nebenprojekt gebaut und gepflegt, finanziert durch ein paar kleine, nicht aufdringliche Anzeigen statt durch ein Abo, eine Pro-Stufe oder Datenverkauf. Genau dieses bewusst einfache Modell ist der Grund, warum es keinen Anlass gibt, irgendjemanden zu täuschen: Die ehrliche Version ist das ganze Produkt."},
-        {"heading": "Privatsphäre & verantwortungsvolle Nutzung", "body": "Es gibt keinen Account und kein Tracking, und wir speichern deine Downloads nicht — das Video wird nur über einen zustandslosen Proxy weitergeleitet, der nichts speichert, allein um Browser-Limits zu umgehen. Bitte nutze vodfetch nur für Inhalte, die dir gehören oder die du speichern darfst, für den persönlichen Gebrauch, und respektiere stets die Twitch-Nutzungsbedingungen und das Urheberrecht der ursprünglichen Creator. Wie wir seitenweit entscheiden, was wir veröffentlichen, steht in unserer Redaktionsrichtlinie."},
+        {"heading": "Privatsphäre & verantwortungsvolle Nutzung", "body": "Es gibt keinen Account, und wir speichern deine Downloads nicht — das Video wird nur über einen zustandslosen Proxy weitergeleitet, der nichts speichert, allein um Browser-Limits zu umgehen. Die Seite ist kostenlos und finanziert sich über Werbung (Google AdSense), die Cookies setzt; in der EU erscheint Googles Consent-Abfrage, über die du personalisierte Werbung verwalten oder ablehnen kannst. Bitte nutze vodfetch nur für Inhalte, die dir gehören oder die du speichern darfst, für den persönlichen Gebrauch, und respektiere stets die Twitch-Nutzungsbedingungen und das Urheberrecht der ursprünglichen Creator. Wie wir seitenweit entscheiden, was wir veröffentlichen, steht in unserer Redaktionsrichtlinie."},
     ],
 }
 

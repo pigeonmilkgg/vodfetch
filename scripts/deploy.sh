@@ -23,6 +23,10 @@ if [ -f .env ]; then set -a; . ./.env; set +a; fi
 : "${TWITCHDL_PROXY_BASE:=https://vodfetch-proxy.gentle-salad-3beb.workers.dev}"
 export TWITCHDL_PROXY_BASE
 
+# Google AdSense (öffentliche Publisher-ID, kein Secret). Leeren, um Ads bewusst abzuschalten.
+: "${TWITCHDL_ADSENSE_CLIENT:=ca-pub-2059165850341947}"
+export TWITCHDL_ADSENSE_CLIENT
+
 if [ -n "${TWITCHDL_PROXY_BASE:-}" ]; then
   echo "==> Medien-Proxy: Cloudflare Worker ($TWITCHDL_PROXY_BASE)"
 else

@@ -175,6 +175,11 @@ def main() -> None:
         # IndexNow-Key-Datei
         write(w.INDEXNOW_KEY + ".txt", w.INDEXNOW_KEY)
 
+        # AdSense: ads.txt am Root (autorisiert das Publisher-Konto; ohne → "unauthorized inventory")
+        if getattr(w, "ADSENSE_CLIENT", ""):
+            pub = w.ADSENSE_CLIENT.replace("ca-", "", 1)  # ads.txt will "pub-..." ohne "ca-"
+            write("ads.txt", f"google.com, {pub}, DIRECT, f08c47fec0942fa0\n")
+
         # Binär-Assets (PNG: OG-Bild, Logo, Favicons)
         import shutil as _sh
         for name, dest in [("og.png", "assets/og.png"), ("logo.png", "assets/logo.png"),

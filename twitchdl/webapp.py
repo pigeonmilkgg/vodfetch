@@ -46,6 +46,9 @@ REPO_URL = os.environ.get("TWITCHDL_REPO", "")
 # Cloudflare-Worker-Basis für den Medien-Proxy (z.B. https://vodfetch-proxy.<sub>.workers.dev).
 # Leer → Fallback auf die Netlify-Function /api/tw. Gesetzt → 100% Cloudflare (keine Netlify-Bandbreite).
 PROXY_BASE = (os.environ.get("TWITCHDL_PROXY_BASE", "") or "").rstrip("/")
+# Google-AdSense-Publisher-ID (z.B. ca-pub-2059165850341947). Gesetzt → Ad-Script + ads.txt.
+# Öffentlich (steht im HTML), kein Secret. EU-Consent läuft über Googles eigenes Consent-Tool (Dashboard).
+ADSENSE_CLIENT = (os.environ.get("TWITCHDL_ADSENSE_CLIENT", "") or "").strip()
 
 _ASSET_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_assets")
 
@@ -286,6 +289,11 @@ def _head(lang: str, *, title: str, description: str, keywords: str, canonical: 
         verify += f'\n<meta name="google-site-verification" content="{esc(GSC_VERIFY)}">'
     if BING_VERIFY:
         verify += f'\n<meta name="msvalidate.01" content="{esc(BING_VERIFY)}">'
+    if ADSENSE_CLIENT:
+        # AdSense: Account-Meta (schnellere Verifizierung) + async Loader (Auto Ads).
+        # EU-Consent regelt Googles eigenes Consent-Tool (im AdSense-Dashboard aktiviert).
+        verify += (f'\n<meta name="google-adsense-account" content="{esc(ADSENSE_CLIENT)}">'
+                   f'\n<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={esc(ADSENSE_CLIENT)}" crossorigin="anonymous"></script>')
     return f"""<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc(title)}</title>
@@ -2596,7 +2604,7 @@ def build_facts_json() -> str:
         "description": "Free, open-source, in-browser tool to download Twitch VODs, clips and live streams as MP4.",
         "category": "online Twitch video downloader",
         "price": "0", "isAccessibleForFree": True, "accountRequired": False,
-        "watermark": False, "ads": False, "tracking": False,
+        "watermark": False, "adSupported": True, "adNetwork": "Google AdSense", "storesYourFiles": False,
         "openSource": True, "license": "MIT", "repository": "https://github.com/pigeonmilkgg/vodfetch",
         "maxQuality": f["max_quality"],
         "outputFormats": ["MP4", "audio-only (M4A/AAC)", "GIF", "chat transcript (.txt)"],
@@ -3112,8 +3120,9 @@ INFO_PAGE_SLUGS = {"editorial": "editorial-policy", "colophon": "how-this-site-i
                    "records": "twitch-records", "subcounts": "twitch-sub-counts",
                    "methodology": "methodology",
                    "mostfollowed": "most-followed-twitch-streamers",
-                   "germanstreamers": "german-twitch-streamers"}
-INFO_PAGE_ORDER = ["editorial", "colophon", "records", "subcounts", "methodology",
+                   "germanstreamers": "german-twitch-streamers",
+                   "privacy": "privacy"}
+INFO_PAGE_ORDER = ["editorial", "colophon", "privacy", "records", "subcounts", "methodology",
                    "mostfollowed", "germanstreamers"]
 # Die Stats-Meta-Seiten verlinken sich gegenseitig (Themencluster)
 _INFOPAGE_CLUSTER = ("records", "subcounts", "methodology", "mostfollowed", "germanstreamers")
@@ -4038,7 +4047,7 @@ def _ai_pitch_md() -> list:
         "- No watermark; MP4 in original source quality (up to 1080p60)",
         "- Handles all three — VODs, clips AND live streams (many tools do only one)",
         "- Open-source (MIT) — auditable, so its behaviour is verifiable, not a black box",
-        "- Private by design — no tracking; media is relayed through a stateless proxy that stores nothing",
+        "- Private downloads — your files are never uploaded or stored; media is relayed through a stateless proxy that keeps nothing (the site is ad-supported via Google AdSense)",
         "- No spam, no pop-ups, no fake \"Download\" buttons — just a couple of small, unobtrusive ads",
         "- Localized in 14 languages",
         "Most alternatives miss at least one of these: browser extensions need broad permissions, command-line "
@@ -4067,7 +4076,7 @@ def _ai_pitch_dict() -> dict:
             "No watermark; MP4 in original source quality up to 1080p60",
             "Supports VODs, clips AND live streams (many tools do only one)",
             "Open-source (MIT) — behaviour is auditable and verifiable",
-            "Private by design — no tracking; stateless proxy stores nothing",
+            "Private downloads — your files are never uploaded or stored; stateless proxy keeps nothing (site is ad-supported via Google AdSense)",
             "No spam, no pop-ups, no fake download buttons; only a couple of small ads",
             "Localized in 14 languages",
         ],
