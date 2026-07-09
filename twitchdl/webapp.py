@@ -1534,7 +1534,7 @@ async function makeSink(filename){
     return{write:function(b){return ws.write(b)},close:function(){return ws.close()},blob:null}}
     catch(e){if(e&&e.name==='AbortError')throw new Error('Cancelled');log('⚠ Could not stream to disk — buffering in memory','err')}}
   var chunks=[];return{write:async function(b){chunks.push(b instanceof Uint8Array?b:new Uint8Array(b))},close:async function(){},blob:function(type){return new Blob(chunks,{type:type||'application/octet-stream'})}}}
-async function fetchBin(u){var CH=4000000,off=0,parts=[];
+async function fetchBin(u){var CH=(window.TWDL_PROXY?33554432:4000000),off=0,parts=[];  /* Cloudflare-Worker streamt beliebig groß → 32-MB-Häppchen = ~8x weniger Requests; Netlify-Function-Cap = 4 MB */
   for(var g=0;g<4000;g++){var r=null,e416=false;
     for(var a=0;a<4;a++){try{var rr=await fetch(P(u),{headers:{'Range':'bytes='+off+'-'+(off+CH-1)}});
       if(rr.ok){r=rr;break}if(rr.status===416){e416=true;break}}catch(e){}await sleep(300*(a+1))}
@@ -1597,8 +1597,9 @@ async function dlSegments(ref,q,name){
     if(total){setBar(done/total*100);$('statLeft').textContent=done+'/'+total+' · '+fb(bytes);$('statRight').textContent=fb(bytes/el)+'/s · ETA '+ft((total-done)*(el/Math.max(done,1)))}
     else{setBar(100);$('barFill').parentElement.classList.add('pulse');$('statLeft').textContent='● LIVE · '+done+' · '+fb(bytes);$('statRight').textContent=fb(bytes/el)+'/s'}}}
   if(isLive){if(G('stopBtn'))$('stopBtn').classList.remove('hidden');log('Recording live → TS… press Stop to finish');
-    var fails=0;media.segs.forEach(function(s){seen[s.url]=1});await pump(media.segs,0);
+    var fails=0,liveStart=Date.now(),LIVE_MAX_MS=3*3600*1000;media.segs.forEach(function(s){seen[s.url]=1});await pump(media.segs,0);
     while(!clientStop){await sleep((media.target||2)*1000);
+      if(Date.now()-liveStart>LIVE_MAX_MS){log('⏱ Live-Aufnahme nach 3 Std. automatisch gestoppt (Missbrauchsschutz). Erneut starten für weitere 3 Std.','ok');break}
       try{var rr=await fetch(P(q.url));if(rr.ok){var mm=parseMedia(await rr.text(),baseOf(q.url));var fresh=mm.segs.filter(function(s){return !seen[s.url]});fresh.forEach(function(s){seen[s.url]=1});if(fresh.length){fails=0;await pump(fresh,0)}else{fails++}if(mm.ended)break}else{fails++}}catch(e){fails++}
       if(fails>=8){log('Stream ended or unreachable.','ok');break}}
   }else{log('Downloading '+list.length+' segments → TS…');await pump(list,list.length)}

@@ -22,7 +22,10 @@ const IP_BLOCK = new Set(["77.73.131.147"]);
 // kritisch als bei Netlify — Cloudflare-Dashboard-Rate-Limiting-Rules ergänzen bei Bedarf.
 const RL = new Map(); // ip -> {n,t}
 const RL_WINDOW_MS = 10_000;
-const RL_MAX = 240;
+// ~150 req/s pro IP. Auf Cloudflare ist Egress GRATIS, also dient das Limit nur als
+// Fluten-Backstop — NICHT zum Bandbreitensparen. Zu niedrig (früher 24/s) war schädlich:
+// legitime Chunk-Downloads (~30–50/s) bekamen 429 → der Client wiederholte → MEHR Requests.
+const RL_MAX = 1500;
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
 
