@@ -2472,10 +2472,12 @@ def render_alternative(lang: str, slug: str) -> "str | None":
     jsonld = _jsonld_tags([_org_node(t), _logo_node(), _website_node(), webpage,
                            _primaryimage_node(canonical + "#primaryimage"),
                            _compare_faq_node(lang, slug, canonical), crumbs])
-    # Title endet bereits auf "— vodfetch"; KEIN redundantes " | Twitch Downloader" anhängen
-    # (spart ~21 Zeichen → keine SERP-Truncation, keine doppelte Marke).
+    # SEO: Die Alternatives-Seite ist ein Near-Duplicate der Compare-Seite (gleiche Tabelle +
+    # gleiche verdict/when_better-Prosa) → canonical auf /compare/{slug}, damit Google die
+    # Signale konsolidiert statt beide als "crawled – not indexed" zu verwerfen. hreflang leer
+    # (die kanonische Compare-Seite trägt den hreflang-Satz). Aus der Sitemap ebenfalls entfernt.
     head = _head(lang, title=a["title"], description=desc,
-                 keywords=t["meta_keywords"], canonical=canonical, alt_pairs=_alt_alt_pairs(slug),
+                 keywords=t["meta_keywords"], canonical=bu + compare_path(lang, slug), alt_pairs=[],
                  jsonld=jsonld, og_type="article", md_href=md_href_for(alternative_path(lang, slug)))
     full = (f'<p><a class="readlink" href="{esc(compare_path(lang, slug))}">{esc(a["full_link"])} →</a></p>')
     body = f"""{_topbar(t, lang, blog=True)}
@@ -2528,8 +2530,9 @@ def render_alternative_index(lang: str) -> str:
     jsonld = _jsonld_tags([_org_node(t), _logo_node(), _website_node(), coll, itemlist, crumbs])
     # index_h1 already conveys the topic + brand context; drop the redundant " | Twitch Downloader"
     # suffix so the title stays <=60 chars (no SERP truncation). Zero translation cost.
+    # Near-Duplicate des Compare-Index (gleiche Konkurrenten-Liste) → canonical auf /compare.
     head = _head(lang, title=a0["index_h1"], description=a0["index_sub"],
-                 keywords=t["meta_keywords"], canonical=canonical, alt_pairs=_alt_index_alt_pairs(),
+                 keywords=t["meta_keywords"], canonical=bu + compare_index_path(lang), alt_pairs=[],
                  jsonld=jsonld, og_type="website", md_href=md_href_for(alternatives_index_path(lang)))
     body = f"""{_topbar(t, lang, blog=True)}
 <main>
@@ -3780,12 +3783,9 @@ def build_sitemap() -> str:
         for slug in compare_slugs():
             for code in LANGUAGES:
                 entries.append(_sitemap_entry(bu + compare_path(code, slug), _compare_alt_pairs(slug), "0.6"))
-        # Alternativen (Index + jede Alternativ-Seite, alle Sprachen)
-        for code in LANGUAGES:
-            entries.append(_sitemap_entry(bu + alternatives_index_path(code), _alt_index_alt_pairs(), "0.6"))
-        for slug in compare_slugs():
-            for code in LANGUAGES:
-                entries.append(_sitemap_entry(bu + alternative_path(code, slug), _alt_alt_pairs(slug), "0.6"))
+        # Alternativen NICHT mehr in der Sitemap: sie sind per canonical auf /compare
+        # konsolidiert (Near-Duplicate). Eine kanonisierte URL gehört nicht in die Sitemap —
+        # das würde Google widersprüchliche Signale geben. Seiten bleiben erreichbar/verlinkt.
     # Blog-Index (alle Sprachen)
     if BLOG_ORDER:
         for code in LANGUAGES:
