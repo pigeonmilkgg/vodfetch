@@ -280,8 +280,11 @@ def _clip_desc(s: str, n: int = 155) -> str:
 
 
 def _head(lang: str, *, title: str, description: str, keywords: str, canonical: str,
-          alt_pairs: list, jsonld: str, og_type: str = "website", md_href: str = "") -> str:
+          alt_pairs: list, jsonld: str, og_type: str = "website", md_href: str = "",
+          noindex: bool = False) -> str:
     bu = base_url()
+    robots_val = ("noindex, follow" if noindex else
+                  "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1")
     og_img = esc(bu + "/assets/og.png")
     desc_meta = _clip_desc(description)
     alt = "\n".join(
@@ -303,7 +306,7 @@ def _head(lang: str, *, title: str, description: str, keywords: str, canonical: 
 <title>{esc(title)}</title>
 <meta name="description" content="{esc(desc_meta)}">
 <meta name="keywords" content="{esc(keywords)}">
-<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta name="robots" content="{robots_val}">
 <meta name="theme-color" content="#9147ff">{verify}
 <link rel="canonical" href="{esc(canonical)}">
 {alt}
@@ -3167,6 +3170,8 @@ INFO_PAGE_ORDER = ["editorial", "colophon", "privacy", "records", "subcounts", "
                    "mostfollowed", "germanstreamers"]
 # Die Stats-Meta-Seiten verlinken sich gegenseitig (Themencluster)
 _INFOPAGE_CLUSTER = ("records", "subcounts", "methodology", "mostfollowed", "germanstreamers")
+# Boilerplate/Trust-Seiten: in Übersetzungen noindex (kein Keyword-Wert, spart Crawl-Budget).
+_NOINDEX_INFO_KEYS = ("colophon", "editorial")
 
 
 def infopage_keys() -> list:
@@ -3334,10 +3339,14 @@ def render_infopage(lang: str, key: str) -> "str | None":
     if faq_ld:
         blocks.append(faq_ld)
 
+    # Reine Boilerplate/Trust-Seiten (Colophon, Editorial) haben in Übersetzungen null
+    # Keyword-Wert → noindex in Nicht-EN, spart Crawl-Budget auf einer jungen Domain.
+    # Die englischen Versionen bleiben indexierbar (tragen das E-E-A-T-Signal).
+    _noindex = key in _NOINDEX_INFO_KEYS and lang != DEFAULT_LANG
     head = _head(lang, title=f'{c["title"]} | Twitch Downloader', description=c["meta"],
                  keywords=t["meta_keywords"], canonical=canonical, alt_pairs=_infopage_alt_pairs(key),
                  jsonld=_jsonld_tags(blocks), og_type="website",
-                 md_href=md_href_for(infopage_path(lang, key)))
+                 md_href=md_href_for(infopage_path(lang, key)), noindex=_noindex)
     body = f"""{_topbar(t, lang, blog=True)}
 <main>
   <article class="article">
@@ -3724,14 +3733,15 @@ def build_robots() -> str:
     )
 
 
-def _sitemap_entry(loc: str, alt_pairs: list, priority: str, changefreq: str = "weekly") -> str:
+def _sitemap_entry(loc: str, alt_pairs: list, priority: str, changefreq: str = "weekly",
+                   lastmod: str = "") -> str:
     links = "".join(
         f'    <xhtml:link rel="alternate" hreflang="{esc(h)}" href="{esc(u)}"/>\n' for h, u in alt_pairs
     )
     return (
         "  <url>\n"
         f"    <loc>{esc(loc)}</loc>\n"
-        f"    <lastmod>{BUILD_DATE}</lastmod>\n"
+        f"    <lastmod>{esc(lastmod or BUILD_DATE)}</lastmod>\n"
         f"    <changefreq>{changefreq}</changefreq>\n"
         f"    <priority>{priority}</priority>\n"
         f"{links}"
@@ -3753,16 +3763,22 @@ def build_sitemap() -> str:
     entries.append(_sitemap_entry(bu + "/dear-ai", [("x-default", bu + "/dear-ai")], "0.5"))
     # Grounding Page (kanonische Entity-Referenz)
     entries.append(_sitemap_entry(bu + "/grounding", [("x-default", bu + "/grounding")], "0.6"))
-    # Statische Info-Seiten (Editorial policy + Colophon, alle Sprachen)
+    # Statische Info-Seiten. Boilerplate-Übersetzungen (colophon/editorial) sind noindex →
+    # NICHT in die Sitemap. Stats-Seiten bekommen ihr echtes Mess-Datum als lastmod.
+    _STATS_DATE = "2026-07-06"
+    _stats_keys = ("records", "subcounts", "methodology", "mostfollowed", "germanstreamers")
     for _key in infopage_keys():
         for code in LANGUAGES:
-            entries.append(_sitemap_entry(bu + infopage_path(code, _key), _infopage_alt_pairs(_key), "0.5"))
-    # Streamer-Entity-Pilot (T5): eine URL pro Streamer, sprach-gematcht
+            if _key in _NOINDEX_INFO_KEYS and code != DEFAULT_LANG:
+                continue
+            _lm = _STATS_DATE if _key in _stats_keys else ""
+            entries.append(_sitemap_entry(bu + infopage_path(code, _key), _infopage_alt_pairs(_key), "0.5", lastmod=_lm))
+    # Streamer-Entity-Pilot (T5): eine URL pro Streamer, sprach-gematcht (Mess-Datum als lastmod)
     if STREAMER_PAGES:
-        entries.append(_sitemap_entry(bu + "/streamer", [("x-default", bu + "/streamer")], "0.6"))
+        entries.append(_sitemap_entry(bu + "/streamer", [("x-default", bu + "/streamer")], "0.6", lastmod=_STATS_DATE))
         for _login in STREAMER_PAGES:
             _u = bu + "/streamer/" + _login
-            entries.append(_sitemap_entry(_u, [("x-default", _u)], "0.6"))
+            entries.append(_sitemap_entry(_u, [("x-default", _u)], "0.6", lastmod=_STATS_DATE))
     # AEO FAQ-Hub (alle Sprachen)
     if aifaq_available():
         for code in LANGUAGES:
@@ -3780,9 +3796,11 @@ def build_sitemap() -> str:
     if COMPARE_META:
         for code in LANGUAGES:
             entries.append(_sitemap_entry(bu + compare_index_path(code), _compare_index_alt_pairs(), "0.6"))
+        _cmp_checked = {m["slug"]: m.get("last_checked", "") for m in COMPARE_META}
         for slug in compare_slugs():
             for code in LANGUAGES:
-                entries.append(_sitemap_entry(bu + compare_path(code, slug), _compare_alt_pairs(slug), "0.6"))
+                entries.append(_sitemap_entry(bu + compare_path(code, slug), _compare_alt_pairs(slug), "0.6",
+                                              lastmod=_cmp_checked.get(slug, "")))
         # Alternativen NICHT mehr in der Sitemap: sie sind per canonical auf /compare
         # konsolidiert (Near-Duplicate). Eine kanonisierte URL gehört nicht in die Sitemap —
         # das würde Google widersprüchliche Signale geben. Seiten bleiben erreichbar/verlinkt.
@@ -3790,11 +3808,12 @@ def build_sitemap() -> str:
     if BLOG_ORDER:
         for code in LANGUAGES:
             entries.append(_sitemap_entry(bu + blog_index_path(code), _blog_index_alt_pairs(), "0.7"))
-        # Blog-Artikel (alle Sprachen)
+        # Blog-Artikel (alle Sprachen) — echtes Veröffentlichungsdatum als lastmod
         for slug in BLOG_ORDER:
+            _bd = (BLOG_POSTS.get(slug) or {}).get("date", "")
             for code in LANGUAGES:
                 entries.append(_sitemap_entry(bu + blog_post_path(code, slug),
-                                              _blog_post_alt_pairs(slug), "0.6"))
+                                              _blog_post_alt_pairs(slug), "0.6", lastmod=_bd))
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
