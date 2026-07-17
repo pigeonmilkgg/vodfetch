@@ -107,6 +107,7 @@ EN = {
     "nav_streamers": "Streamer directory",
     "stats_h2": "Twitch stats & rankings — measured, not estimated",
     "ad_label": "Advertisement",
+    "consent_manage": "Cookie settings",
     "blog_byline": "Written by the vodfetch founder",
     "meta_title": "Twitch Downloader — Free VOD, Clip & Live Downloads to MP4",
     "meta_description": (
@@ -362,6 +363,7 @@ DE = {
     "nav_streamers": "Streamer-Verzeichnis",
     "stats_h2": "Twitch-Stats & Rankings — gemessen, nicht geschätzt",
     "ad_label": "Werbung",
+    "consent_manage": "Cookie-Einstellungen",
     "blog_byline": "Geschrieben vom vodfetch-Gründer",
     "meta_title": "Twitch Downloader — VODs, Clips & Live gratis als MP4 laden",
     "meta_description": (

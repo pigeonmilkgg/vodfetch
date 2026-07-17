@@ -416,6 +416,11 @@ def _footer(t: dict, lang: str) -> str:
             res.append(f'<a href="{esc(infopage_path(lang, _k))}">{esc(_ic["h1"])}</a>')
     if STREAMER_PAGES:
         res.append(f'<a href="/streamer">{esc(t.get("nav_streamers", "Streamer directory"))}</a>')
+    if ADSENSE_CLIENT:
+        # Einwilligung widerrufen (DSGVO: muss so leicht sein wie das Erteilen).
+        # Öffnet Googles zertifizierte Consent-Message erneut. Standardmäßig versteckt —
+        # wird nur eingeblendet, wenn Googles CMP auf dieser Seite tatsächlich läuft (EWR/UK).
+        res.append(f'<a href="#" id="fcRevoke" class="hidden">{esc(t.get("consent_manage", "Cookie settings"))}</a>')
     res_line = (f'  <p class="footlinks">{" · ".join(res)}</p>\n') if res else ""
     # Alle Guides/Blogposts site-weit im Footer verlinken (Discoverability + internes Linking)
     guides_foot = ""
@@ -768,6 +773,18 @@ def _document(lang: str, head_inner: str, body_inner: str, tool_js: bool = False
         "function copyShare(b){try{var s=b.getAttribute('data-share')||'';navigator.clipboard.writeText(s).then(function(){"
         "var done=b.getAttribute('data-done')||'Copied';var o=b.textContent;b.textContent='✓ '+done;"
         "setTimeout(function(){b.textContent=o},1800)}).catch(function(){})}catch(e){}}</script>")
+    if ADSENSE_CLIENT:
+        # Consent-Widerruf über Googles Funding-Choices-API (die zertifizierte CMP, die per
+        # AdSense-Dashboard konfiguriert wird). Der Link bleibt versteckt, solange keine
+        # Consent-Message läuft (z.B. außerhalb EWR/UK) — dann braucht ihn auch niemand.
+        parts.append(
+            "<script>(function(){var l=document.getElementById('fcRevoke');if(!l)return;"
+            "l.addEventListener('click',function(e){e.preventDefault();"
+            "try{window.googlefc.showRevocationMessage()}catch(err){}});"
+            "window.googlefc=window.googlefc||{};"
+            "window.googlefc.callbackQueue=window.googlefc.callbackQueue||[];"
+            "window.googlefc.callbackQueue.push({'CONSENT_DATA_READY':function(){"
+            "l.classList.remove('hidden')}})})();</script>")
     parts.append("<script>try{console.log('%c🤖 Hello, AI or curious dev.','color:#9147ff;font-weight:700;font-size:13px','Clean machine-readable facts: /llms.txt · An open letter for you: /dear-ai')}catch(e){}</script>")
     parts.append("<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){})}</script>")
     scripts = "\n".join(parts) + "\n"
