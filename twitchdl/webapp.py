@@ -358,6 +358,8 @@ def build_head(t: dict, lang: str) -> str:
 # <body>
 # --------------------------------------------------------------------------- #
 def _lang_select(t: dict, lang: str) -> str:
+    if len(LANGUAGES) < 2:
+        return ""  # einsprachige Site: kein Umschalter
     opts = []
     for code, meta in LANGUAGES.items():
         sel = " selected" if code == lang else ""
@@ -390,7 +392,7 @@ def _footer(t: dict, lang: str) -> str:
     foot_langs = " · ".join(
         f'<a href="{esc(lang_path(code))}" hreflang="{esc(meta["hreflang"])}">{esc(meta["name"])}</a>'
         for code, meta in LANGUAGES.items()
-    )
+    ) if len(LANGUAGES) > 1 else ""
     ai_links = (
         '<a href="/dear-ai">🤖 Dear AI</a> · <a href="/grounding">Grounding page</a> · '
         '<a href="/llms.txt">llms.txt</a> · <a href="/llms-full.txt">llms-full.txt</a> · '
@@ -2801,7 +2803,7 @@ def _stats_cards_html(lang: str) -> str:
     if STREAMER_PAGES:
         t = get_strings(lang)
         cards.append(_card_html("/streamer", t.get("nav_streamers", "Streamer directory"),
-                                f"{len(STREAMER_PAGES)} Streamer · VODs · Clips · MP4", "🎙️"))
+                                f"{len(streamer_logins())} Streamer · VODs · Clips · MP4", "🎙️"))
     return "".join(cards)
 
 
@@ -3008,9 +3010,14 @@ def _st_fmt(n: int, lang: str) -> str:
     return s
 
 
+def streamer_logins() -> list:
+    """Nur Streamer, deren Seitensprache aktiv gebaut wird (siehe TWITCHDL_LANGS)."""
+    return [l for l, d in STREAMER_PAGES.items() if d.get("lang") in LANGUAGES]
+
+
 def render_streamer(login: str) -> "str | None":
     d = STREAMER_PAGES.get(login)
-    if not d:
+    if not d or d.get("lang") not in LANGUAGES:
         return None
     lang = d["lang"]
     ui = _ST_UI[lang]
@@ -3036,7 +3043,8 @@ def render_streamer(login: str) -> "str | None":
     avatar_html = ('<img class="stavatar" src="' + esc(d["avatar"])
                    + '" alt="" referrerpolicy="no-referrer" onerror="this.style.display=' + "'none'" + '">') if d.get("avatar") else ""
     # Verwandte Streamer (gleiche Sprache, nach Followern benachbart)
-    same = [(l2, s2) for l2, s2 in STREAMER_PAGES.items() if s2["lang"] == lang and l2 != login]
+    same = [(l2, s2) for l2, s2 in STREAMER_PAGES.items()
+            if s2["lang"] == lang and l2 != login and s2.get("lang") in LANGUAGES]
     same.sort(key=lambda kv: abs(kv[1]["followers"] - d["followers"]))
     rel_cards = "".join(
         '<article class="card">'
@@ -3124,7 +3132,7 @@ def render_streamer_index() -> str:
     groups = {"en": "English", "de": "Deutsch", "fr": "Français", "es": "Español"}
     secs = []
     for code, label in groups.items():
-        items = sorted(((l, s) for l, s in STREAMER_PAGES.items() if s["lang"] == code),
+        items = sorted(((l, s) for l, s in STREAMER_PAGES.items() if s["lang"] == code and code in LANGUAGES),
                        key=lambda kv: -kv[1]["followers"])
         if not items:
             continue
@@ -3169,7 +3177,7 @@ def md_streamer_index() -> str:
     bu = base_url()
     L = ["# Twitch Streamer Directory", "",
          f"Source: {bu}/streamer  ·  Measured follower counts + VOD/clip downloads per channel.", ""]
-    for l, s in sorted(STREAMER_PAGES.items(), key=lambda kv: -kv[1]["followers"]):
+    for l, s in sorted(((k, v) for k, v in STREAMER_PAGES.items() if v.get("lang") in LANGUAGES), key=lambda kv: -kv[1]["followers"]):
         L.append(f"- [{s['name']}]({bu}/streamer/{l}) — {s['followers']:,} followers ({s['lang']})")
     return "\n".join(L) + "\n"
 
@@ -3291,11 +3299,19 @@ def render_infopage(lang: str, key: str) -> "str | None":
     if c.get("list"):
         _nums = [int(re.sub(r"\D", "", x["value"]) or 0) for x in c["list"]]
         _max = max(_nums) if _nums else 1
+        _built = set(streamer_logins())
+
+        def _rank_href(r):
+            """Nur verlinken, wenn die Streamer-Seite auch wirklich gebaut wird."""
+            h = r.get("href", "")
+            if h.startswith("/streamer/") and h.rsplit("/", 1)[-1] not in _built:
+                return ""
+            return h
         rows = "".join(
             "<li>"
             + (f'<img class="rl-av" src="{esc(r["img"])}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">' if r.get("img") else "")
             + '<div class="rl-main"><span class="rl-name">'
-            + (f'<a href="{esc(r["href"])}">{esc(r["name"])}</a>' if r.get("href") else esc(r["name"]))
+            + (f'<a href="{esc(_rank_href(r))}">{esc(r["name"])}</a>' if _rank_href(r) else esc(r["name"]))
             + "</span>"
             + (f'<span class="rl-note">{esc(r["note"])}</span>' if r.get("note") else "")
             + "</div>"
@@ -3309,7 +3325,7 @@ def render_infopage(lang: str, key: str) -> "str | None":
                        "name": c.get("list_h") or c["h1"], "inLanguage": hreflang,
                        "numberOfItems": len(c["list"]),
                        "itemListElement": [dict({"@type": "ListItem", "position": i + 1, "name": r["name"]},
-                                                **({"url": base_url() + r["href"]} if r.get("href") else {}))
+                                                **({"url": base_url() + _rank_href(r)} if _rank_href(r) else {}))
                                            for i, r in enumerate(c["list"])]}
 
     # Editorial: the canonical-pages block (explicit "cite these" guidance); FAQ für jede Seite mit faqs
@@ -3395,9 +3411,13 @@ def md_infopage(lang: str, key: str) -> "str | None":
     if c.get("list"):
         if c.get("list_h"):
             L += [f"## {c['list_h']}", ""]
+        _built = set(streamer_logins())
         for i, r in enumerate(c["list"], 1):
             note = f" — {r['note']}" if r.get("note") else ""
-            nm = f"[{r['name']}]({bu}{r['href']})" if r.get("href") else f"**{r['name']}**"
+            _h = r.get("href", "")
+            if _h.startswith("/streamer/") and _h.rsplit("/", 1)[-1] not in _built:
+                _h = ""
+            nm = f"[{r['name']}]({bu}{_h})" if _h else f"**{r['name']}**"
             L.append(f"{i}. {nm} — {r['value']}{note}")
         L.append("")
     for s in c.get("sections", []):
@@ -3793,7 +3813,7 @@ def build_sitemap() -> str:
     # Streamer-Entity-Pilot (T5): eine URL pro Streamer, sprach-gematcht (Mess-Datum als lastmod)
     if STREAMER_PAGES:
         entries.append(_sitemap_entry(bu + "/streamer", [("x-default", bu + "/streamer")], "0.6", lastmod=_STATS_DATE))
-        for _login in STREAMER_PAGES:
+        for _login in streamer_logins():
             _u = bu + "/streamer/" + _login
             entries.append(_sitemap_entry(_u, [("x-default", _u)], "0.6", lastmod=_STATS_DATE))
     # AEO FAQ-Hub (alle Sprachen)
@@ -4001,7 +4021,7 @@ def build_llms(lang: str = DEFAULT_LANG) -> str:
         if _ic:
             L.append(f"- [{_ic['h1']}]({bu}{infopage_path(lang, _key)}) — {_ic['meta']}")
     if STREAMER_PAGES:
-        L.append(f"- [Streamer directory]({bu}/streamer) — {len(STREAMER_PAGES)} curated channel pages "
+        L.append(f"- [Streamer directory]({bu}/streamer) — {len(streamer_logins())} curated channel pages "
                  "(measured followers, current VODs with expiry, top clips, MP4 downloads).")
     L += ["", "## Step-by-step guides"]
     for slug in BLOG_ORDER:

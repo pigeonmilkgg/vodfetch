@@ -33,6 +33,147 @@
   status = 301
   force = true
 
+# Stillgelegte Sprachversionen (2026-07-19): Die 13 maschinell übersetzten Sprachen
+# waren 86% der Site und der Hauptgrund für AdSense "minderwertige Inhalte" + Googles
+# "crawled – currently not indexed". Statt harter 404s leiten wir per 301 auf die
+# englische Entsprechung um: gleiche Bereinigung, aber Link-Equity und Lesezeichen
+# bleiben erhalten. Reaktivierbar über TWITCHDL_LANGS (siehe twitchdl/i18n.py).
+[[redirects]]
+  from = "/de/*"
+  to = "/:splat"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/de"
+  to = "/"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/es/*"
+  to = "/:splat"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/es"
+  to = "/"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/pt-br/*"
+  to = "/:splat"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/pt-br"
+  to = "/"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/fr/*"
+  to = "/:splat"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/fr"
+  to = "/"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/it/*"
+  to = "/:splat"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/it"
+  to = "/"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/nl/*"
+  to = "/:splat"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/nl"
+  to = "/"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/pl/*"
+  to = "/:splat"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/pl"
+  to = "/"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/tr/*"
+  to = "/:splat"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/tr"
+  to = "/"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/ru/*"
+  to = "/:splat"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/ru"
+  to = "/"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/ja/*"
+  to = "/:splat"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/ja"
+  to = "/"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/ko/*"
+  to = "/:splat"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/ko"
+  to = "/"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/zh-cn/*"
+  to = "/:splat"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/zh-cn"
+  to = "/"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/ar/*"
+  to = "/:splat"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/ar"
+  to = "/"
+  status = 301
+  force = true
+
+# Hinweis: Die entfernten nicht-englischen Streamer-Seiten liefern bewusst 404.
+# Ein Sammel-Redirect auf /streamer wäre ein Soft-404-Muster (Google wertet
+# Massen-Weiterleitungen entfernter URLs auf eine generische Seite ohnehin ab);
+# der 404 ist das saubere "diese Seite existiert nicht mehr"-Signal.
+
 # Markdown-Versionen korrekt als text/markdown ausliefern (für LLMs/AI-Crawler)
 [[headers]]
   for = "/*.md"

@@ -8,11 +8,12 @@ Sprachen/Keys fallen automatisch auf Englisch zurück (siehe get_strings()).
 """
 from __future__ import annotations
 
+import os
 from copy import deepcopy
 from typing import Optional
 
 # Reihenfolge = Reihenfolge im Sprach-Umschalter. dir = Schreibrichtung.
-LANGUAGES: dict[str, dict] = {
+ALL_LANGUAGES: dict[str, dict] = {
     "en": {"name": "English", "dir": "ltr", "hreflang": "en"},
     "de": {"name": "Deutsch", "dir": "ltr", "hreflang": "de"},
     "es": {"name": "Español", "dir": "ltr", "hreflang": "es"},
@@ -30,6 +31,17 @@ LANGUAGES: dict[str, dict] = {
 }
 
 DEFAULT_LANG = "en"
+
+# Aktiv gebaute Sprachen. Standard: NUR Englisch.
+# Grund (2026-07-19): 86% der Site waren unreviewte Maschinen-Übersetzungen — AdSense
+# lehnte deshalb mit "minderwertige Inhalte" ab und Google indexierte sie nicht
+# ("crawled – currently not indexed" traf fast ausschließlich Nicht-EN-URLs).
+# Über TWITCHDL_LANGS="en,de" jederzeit wieder erweiterbar; die Übersetzungsdaten
+# bleiben im Repo erhalten. Nicht gebaute Sprachen werden per 301 auf EN umgeleitet
+# (siehe netlify.toml).
+_ENABLED = [c.strip().lower() for c in os.environ.get("TWITCHDL_LANGS", "en").split(",") if c.strip()]
+LANGUAGES: dict[str, dict] = {k: v for k, v in ALL_LANGUAGES.items() if k in _ENABLED} \
+    or {DEFAULT_LANG: ALL_LANGUAGES[DEFAULT_LANG]}
 
 
 # --------------------------------------------------------------------------- #

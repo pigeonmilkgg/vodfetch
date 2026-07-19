@@ -115,7 +115,7 @@ def main() -> None:
         if getattr(w, "STREAMER_PAGES", None):
             write("streamer.html", w.render_streamer_index())
             write("streamer.md", w.md_streamer_index())
-            for login in w.STREAMER_PAGES:
+            for login in w.streamer_logins():
                 h = w.render_streamer(login)
                 if h:
                     write(f"streamer/{login}.html", h)
