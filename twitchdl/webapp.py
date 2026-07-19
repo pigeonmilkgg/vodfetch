@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import datetime
 import html as _html
 import json
 import os
@@ -1031,6 +1032,27 @@ CSS = r"""
 .unbadge.live{background:#e91916;border-color:#e91916;color:#fff}
 .fcbig{font-size:19px;font-weight:600;line-height:1.45}
 .cbseg{margin:0 0 10px}
+.tblwrap{overflow-x:auto;margin:16px 0;border:1px solid var(--border);border-radius:12px;background:var(--panel)}
+.dtable{width:100%;border-collapse:collapse;font-size:15px;min-width:520px}
+.dtable th,.dtable td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--border);vertical-align:middle}
+.dtable tbody tr:last-child th,.dtable tbody tr:last-child td{border-bottom:0}
+.dtable thead th{background:var(--panel2);color:var(--muted);font-size:13px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;position:sticky;top:0}
+.dtable tbody th{color:var(--muted);font-weight:500;white-space:nowrap;width:1%}
+.dtable tbody tr:hover td{background:rgba(145,71,255,.06)}
+.dtable .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.clipt .rk{color:var(--muted);font-variant-numeric:tabular-nums;width:1%;text-align:right}
+.clipt tr:nth-child(1) .rk::before{content:"🥇 "}
+.clipt tr:nth-child(2) .rk::before{content:"🥈 "}
+.clipt tr:nth-child(3) .rk::before{content:"🥉 "}
+.clipt .ct{max-width:32ch;font-weight:500}
+.clipt .ct a{color:var(--text);text-decoration:none}
+.clipt .ct a:hover{color:var(--purple);text-decoration:underline}
+.dlbtn{display:inline-block;padding:5px 12px;border-radius:999px;background:var(--purple);color:#fff;
+  font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;transition:background .15s}
+.dlbtn:hover{background:var(--purple2)}
+.chq{margin:16px 0;padding:14px 18px;border-left:3px solid var(--purple);background:var(--panel);border-radius:0 10px 10px 0}
+.chq p{margin:0;font-style:italic;color:var(--text)}
+.chq footer{margin-top:8px;font-size:13px;color:var(--muted);font-style:normal}
 .ranklist{list-style:none;counter-reset:rk;margin:18px 0;padding:0;display:grid;gap:10px}
 .ranklist li{counter-increment:rk;display:flex;gap:14px;align-items:center;padding:12px 16px;
   background:var(--panel);border:1px solid var(--border);border-radius:12px;
@@ -3015,6 +3037,135 @@ def streamer_logins() -> list:
     return [l for l, d in STREAMER_PAGES.items() if d.get("lang") in LANGUAGES]
 
 
+# --- Streamer-Seiten: gemessene Daten aufbereiten -------------------------------------
+# Alles hier leitet sich aus scripts/fetch_streamers.py ab (Twitch GraphQL). Nichts wird
+# geschätzt oder erfunden: fehlt ein Feld, entfällt die Zeile.
+
+def _st_dur(secs: int) -> str:
+    """44 -> 0:44, 130 -> 2:10, 3700 -> 1:01:40"""
+    secs = int(secs or 0)
+    h, rem = divmod(secs, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+
+def _st_num(n: int) -> str:
+    return f"{int(n or 0):,}"
+
+
+def _st_longdate(iso: str) -> str:
+    """'2014-09-12' -> 'September 12, 2014' (leer bei kaputtem Datum)."""
+    try:
+        return datetime.date(*(int(x) for x in iso.split("-")[:3])).strftime("%B %-d, %Y")
+    except Exception:
+        return iso or ""
+
+
+def _st_years(iso: str) -> int:
+    try:
+        y, m, dd = (int(x) for x in iso.split("-")[:3])
+        today = datetime.date.today()
+        return today.year - y - ((today.month, today.day) < (m, dd))
+    except Exception:
+        return 0
+
+
+def _st_clip_url(slug: str) -> str:
+    return "https://clips.twitch.tv/" + slug
+
+
+def _st_intro(d: dict) -> str:
+    """Der Einleitungsabsatz wird bei JEDEM Build aus den gemessenen Werten neu gebaut.
+
+    Früher stand er als fertiger Text in _streamers.py — dadurch nannte die Seite nach
+    einem Daten-Refresh zwei verschiedene Followerzahlen und versprach VOD-Listen, die
+    gar nicht auf der Seite stehen. Komponiert kann beides nicht mehr auseinanderlaufen.
+    """
+    name = d["name"]
+    status = ("a Twitch Partner" if d.get("partner")
+              else ("a Twitch Affiliate" if d.get("affiliate") else "neither a Twitch Partner nor an Affiliate"))
+    yr = (d.get("created") or "")[:4]
+    s = [f'{name} is {status} with {_st_num(d.get("followers", 0))} followers, '
+         f'measured {_st_longdate(d.get("checked", ""))}'
+         + (f'; the channel has existed since {yr}.' if yr else '.')]
+    if d.get("curated"):
+        s.append(d["curated"])
+    n = len(d.get("clips") or [])
+    if n:
+        s.append(f'Below: the {n} most-watched clips on the channel, each with a free MP4 '
+                 f'download that runs in your browser — plus the tool for any VOD, clip or '
+                 f'live stream you paste in yourself.')
+    return " ".join(s)
+
+
+def _st_stats_html(d: dict, login: str, lang: str) -> str:
+    """Faktentabelle — jede Zeile ist ein gemessener Wert, keine Schätzung."""
+    created = d.get("created", "")
+    yrs = _st_years(created)
+    status = ("Twitch Partner" if d.get("partner")
+              else ("Twitch Affiliate" if d.get("affiliate") else "Neither Partner nor Affiliate"))
+    rows = [("Followers", _st_num(d.get("followers", 0))),
+            ("Channel created", _st_longdate(created) + (f" ({yrs} years on Twitch)" if yrs else "")),
+            ("Status", status)]
+    if d.get("team"):
+        rows.append(("Twitch team", esc(d["team"])))
+    if d.get("last_game"):
+        rows.append(("Most recent category", esc(d["last_game"])))
+    if d.get("clips"):
+        rows.append(("Public clips indexed here", f'{len(d["clips"])} most-watched'))
+    rows.append(("Data measured", _st_longdate(d.get("checked", "")) + " · Twitch public API"))
+    body = "".join(f"<tr><th scope=\"row\">{k}</th><td>{v}</td></tr>" for k, v in rows)
+    return (f'<section class="block"><h2>{esc(d["name"])} at a glance</h2>'
+            f'<div class="tblwrap"><table class="dtable"><tbody>{body}</tbody></table></div></section>')
+
+
+def _st_insight(d: dict) -> str:
+    """Ein Satz, komplett aus den Clip-Daten gerechnet."""
+    clips = d.get("clips") or []
+    if not clips:
+        return ""
+    total = sum(c.get("views", 0) for c in clips)
+    dates = sorted(c["date"] for c in clips if c.get("date"))
+    games = [c["game"] for c in clips if c.get("game")]
+    bits = [f'Together, these {len(clips)} clips have been watched {_st_num(total)} times.']
+    if len(dates) >= 2:
+        bits.append(f"The oldest is from {_st_longdate(dates[0])}, the newest from {_st_longdate(dates[-1])}.")
+    if games:
+        top = max(set(games), key=games.count)
+        cnt = games.count(top)
+        if cnt > 1:
+            bits.append(f'{esc(top)} is the most common category among them ({cnt} of {len(clips)}).')
+    return '<p class="cbnote">' + " ".join(bits) + "</p>"
+
+
+def _st_clips_html(d: dict, login: str, lang: str) -> str:
+    """Top-Clips als Tabelle. Clips laufen auf Twitch nie ab — daher sind sie backbar,
+    anders als VODs, die nach 7–60 Tagen verschwinden würden."""
+    clips = d.get("clips") or []
+    if not clips:
+        return ""
+    dl = landing_path(lang, "twitch-clip-downloader")
+    rows = []
+    for i, c in enumerate(clips, 1):
+        url = _st_clip_url(c["slug"])
+        rows.append(
+            f'<tr><td class="rk">{i}</td>'
+            f'<td class="ct"><a href="{esc(url)}" rel="nofollow noopener" target="_blank">{esc(c.get("title") or c["slug"])}</a></td>'
+            f'<td>{esc(c.get("game") or "—")}</td>'
+            f'<td class="num">{_st_dur(c.get("secs"))}</td>'
+            f'<td class="num">{_st_num(c.get("views"))}</td>'
+            f'<td class="num">{esc(c.get("date") or "")}</td>'
+            f'<td><a class="dlbtn" href="{esc(dl)}?url={esc(url)}&amp;go=1">MP4</a></td></tr>')
+    return (f'<section class="block"><h2>{esc(d["name"])}’s most-watched clips</h2>'
+            + _st_insight(d)
+            + '<div class="tblwrap"><table class="dtable clipt"><thead><tr>'
+            '<th>#</th><th>Clip</th><th>Category</th><th>Length</th><th>Views</th><th>Created</th><th>Download</th>'
+            f'</tr></thead><tbody>{"".join(rows)}</tbody></table></div>'
+            f'<p class="cbnote">Clip counts measured {_st_longdate(d.get("checked", ""))}. '
+            f'Every “MP4” link opens the clip downloader with that clip already loaded — '
+            f'the download runs in your browser, straight from Twitch.</p></section>')
+
+
 def render_streamer(login: str) -> "str | None":
     d = STREAMER_PAGES.get(login)
     if not d or d.get("lang") not in LANGUAGES:
@@ -3027,7 +3178,10 @@ def render_streamer(login: str) -> "str | None":
     hreflang = LANGUAGES[lang]["hreflang"]
     name = d["name"]
     n_fmt = _st_fmt(d["followers"], lang)
-    dtxt = _ST_DATE[lang]
+    # Messdatum pro Streamer statt global — sonst behauptet die Seite nach einem
+    # Daten-Refresh ein Datum, an dem gar nicht gemessen wurde. _st_longdate ist
+    # englisch, für andere Sprachen bleibt die übersetzte Konstante.
+    dtxt = (_st_longdate(d["checked"]) if lang == "en" and d.get("checked") else _ST_DATE[lang])
     title = f"{name} — {ui['title_tail']}"
     meta = ui["meta"].format(name=name, n=n_fmt, d=dtxt)
     faqs = [
@@ -3036,10 +3190,44 @@ def render_streamer(login: str) -> "str | None":
         {"q": ui["faq_exp_q"].format(name=name),
          "a": ui["faq_exp_a_p"] if d["partner"] else ui["faq_exp_a_np"]},
     ]
+    # Zusätzliche FAQs, die sich vollständig aus den gemessenen Daten ableiten.
+    _checked_long = _st_longdate(d.get("checked", ""))
+    _clips = d.get("clips") or []
+    if _clips:
+        top = max(_clips, key=lambda c: c.get("views", 0))
+        faqs.append({
+            "q": f"What is {name}’s most-watched clip?",
+            "a": (f'“{top.get("title") or top["slug"]}” from {_st_longdate(top.get("date", ""))}, '
+                  f'with {_st_num(top.get("views"))} views when measured on {_checked_long}. '
+                  f'It runs {_st_dur(top.get("secs"))}'
+                  + (f' and was clipped from {top["game"]}.' if top.get("game") else ".")
+                  + f' You can save it as an MP4 with the clip downloader on this page.')})
+    _yrs = _st_years(d.get("created", ""))
+    if _yrs:
+        faqs.append({
+            "q": f"How long has {name} been on Twitch?",
+            "a": (f'The channel was created on {_st_longdate(d["created"])}, so it has existed for '
+                  f'{_yrs} years. Twitch does not publish a total watch-time or stream-hours figure '
+                  f'publicly, so this page only states the account age.')})
+    if d.get("team"):
+        faqs.append({
+            "q": f"Is {name} part of a Twitch team?",
+            "a": f'Yes — Twitch lists {name} under the team “{d["team"]}” (measured {_checked_long}).'})
+    if d.get("last_game"):
+        faqs.append({
+            "q": f"What does {name} stream?",
+            "a": (f'The most recent category set on the channel was {d["last_game"]} '
+                  f'(measured {_checked_long}). Categories change from stream to stream — '
+                  f'the clip table below shows which ones actually produced the channel’s '
+                  f'most-watched moments.')})
     facts_bits = [ui["facts"].format(n=n_fmt, d=dtxt), ui["since"].format(y=d["created"][:4])]
     badges = f' <span class="unbadge">{esc(ui["partner"])}</span>' if d["partner"] else ""
-    bio_block = (f'<p class="cbnote">{esc(ui["bio_h"])} „{esc(d["bio"])}“</p>'
-                 if d.get("bio") else "")
+    # Die Kanalbeschreibung stammt vom Streamer selbst — als Zitat mit Quellenangabe.
+    # (Das frühere 'bio'-Feld war durchweg dieselbe Zeichenkette und stand doppelt auf der Seite.)
+    desc_block = (f'<blockquote class="chq"><p>{esc(d["desc"])}</p>'
+                  f'<footer>— {esc(name)}’s own channel description on Twitch, '
+                  f'read {esc(_st_longdate(d.get("checked", "")))}</footer></blockquote>'
+                  if d.get("desc") else "")
     avatar_html = ('<img class="stavatar" src="' + esc(d["avatar"])
                    + '" alt="" referrerpolicy="no-referrer" onerror="this.style.display=' + "'none'" + '">') if d.get("avatar") else ""
     # Verwandte Streamer (gleiche Sprache, nach Followern benachbart)
@@ -3080,7 +3268,19 @@ def render_streamer(login: str) -> "str | None":
         {"@type": "ListItem", "position": 1, "name": BRAND, "item": bu + lang_path(lang)},
         {"@type": "ListItem", "position": 2, "name": "Streamer", "item": bu + "/streamer"},
         {"@type": "ListItem", "position": 3, "name": name, "item": canonical}]}
-    jsonld = _jsonld_tags([_org_node(t), _logo_node(), _website_node(), person, webpage, faqld, crumbs])
+    nodes = [_org_node(t), _logo_node(), _website_node(), person, webpage, faqld, crumbs]
+    if _clips:
+        # ItemList (keine VideoObjects): wir haben keine contentUrl/Thumbnail gemessen,
+        # und geschätzte Pflichtfelder wären erfundene Daten.
+        nodes.append({"@type": "ItemList", "@id": canonical + "#clips", "inLanguage": hreflang,
+                      "name": f"{name}’s most-watched Twitch clips",
+                      "isPartOf": {"@id": page_id}, "numberOfItems": len(_clips),
+                      "itemListOrder": "https://schema.org/ItemListOrderDescending",
+                      "itemListElement": [
+                          {"@type": "ListItem", "position": i, "name": c.get("title") or c["slug"],
+                           "url": _st_clip_url(c["slug"])}
+                          for i, c in enumerate(_clips, 1)]})
+    jsonld = _jsonld_tags(nodes)
     head = _head(lang, title=title, description=meta, keywords=t["meta_keywords"],
                  canonical=canonical, alt_pairs=[("x-default", canonical), (hreflang, canonical)],
                  jsonld=jsonld, og_type="profile", md_href=md_href_for(f"/streamer/{login}"))
@@ -3090,10 +3290,12 @@ def render_streamer(login: str) -> "str | None":
     <nav class="crumbs"><a href="{esc(lang_path(lang))}">{esc(BRAND)}</a> › <a href="/streamer">Streamer</a> › <span>{esc(name)}</span></nav>
     <h1>{avatar_html}{esc(name)}{badges}</h1>
     <p class="cbnote">{esc(" · ".join(facts_bits))} · <a href="{esc(landing_path(lang, "twitch-follower-count"))}">{esc(ui.get("live_check", "live check →"))}</a></p>
-    <p class="answer">{esc(d["blurb"])}</p>
-    {bio_block}
+    <p class="answer">{esc(_st_intro(d))}</p>
+    {desc_block}
+    {_st_stats_html(d, login, lang)}
     <script>window.TWDL_BOOT={json.dumps(login)};</script>
 {_tool_card_html(t, lang)}
+    {_st_clips_html(d, login, lang)}
     <h2>{esc(t["faq_h2"])}</h2><div class="faqs">{faq_html}</div>
     {_ad_slot(t, "streamer-low")}
     <section class="block"><h2>{esc(ui["rel_h"])}</h2><div class="cards">{rel_cards}{guides}</div>
@@ -3110,13 +3312,35 @@ def md_streamer(login: str) -> "str | None":
     if not d:
         return None
     lang, ui, bu = d["lang"], _ST_UI[d["lang"]], base_url()
-    n_fmt, dtxt = _st_fmt(d["followers"], lang), _ST_DATE[lang]
+    n_fmt = _st_fmt(d["followers"], lang)
+    dtxt = (_st_longdate(d["checked"]) if lang == "en" and d.get("checked") else _ST_DATE[lang])
     L = [f"# {d['name']}", "", f"> {ui['sub']}", "",
          f"Source: {bu}/streamer/{login}  ·  Data: Twitch public API, {dtxt}.", "",
-         d["blurb"], "",
+         _st_intro(d), "",
          f"- {ui['facts'].format(n=n_fmt, d=dtxt)}",
          f"- {ui['since'].format(y=d['created'][:4])}"
          + (f"\n- {ui['partner']}" if d["partner"] else ""), ""]
+    if d.get("desc"):
+        L += [f"> {d['desc']}", "", f"— {d['name']}'s own channel description on Twitch.", ""]
+    facts = [("Followers", _st_num(d.get("followers", 0))),
+             ("Channel created", _st_longdate(d.get("created", "")))]
+    if d.get("team"):
+        facts.append(("Twitch team", d["team"]))
+    if d.get("last_game"):
+        facts.append(("Most recent category", d["last_game"]))
+    facts.append(("Data measured", _st_longdate(d.get("checked", "")) + " · Twitch public API"))
+    L += ["## Measured facts", ""] + [f"- **{k}:** {v}" for k, v in facts] + [""]
+    clips = d.get("clips") or []
+    if clips:
+        L += [f"## {d['name']}'s most-watched clips", "",
+              "| # | Clip | Category | Length | Views | Created |",
+              "|---|------|----------|--------|-------|---------|"]
+        for i, c in enumerate(clips, 1):
+            ttl = (c.get("title") or c["slug"]).replace("|", "/")
+            L.append(f"| {i} | [{ttl}]({_st_clip_url(c['slug'])}) | {c.get('game') or '—'} | "
+                     f"{_st_dur(c.get('secs'))} | {_st_num(c.get('views'))} | {c.get('date') or ''} |")
+        L += ["", f"Clip view counts measured {_st_longdate(d.get('checked', ''))}. "
+                  "Twitch clips do not expire; VODs do.", ""]
     L += [f"## {ui['faq_f_q'].format(name=d['name'])}", "", ui["faq_f_a"].format(n=n_fmt, d=dtxt), ""]
     return "\n".join(L) + "\n"
 
