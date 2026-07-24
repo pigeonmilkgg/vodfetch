@@ -141,6 +141,53 @@ def blog_post_data(slug: str, lang: str) -> "dict | None":
     return i.get(lang) or i.get(DEFAULT_LANG)
 
 
+# --- Verwandte Guides: thematisch ausgewählt statt "alle" ---------------------------
+# Vorher listete JEDER Blogpost alle 27 anderen inkl. Auszug — 1.466 Wörter Fremdtext
+# pro Seite, site-weit 41.000 Wörter Dubletten. Das ist genau Googles "substantially
+# similar pages" / "duplicate content across pages". Jetzt: die K thematisch nächsten.
+# Alle Posts bleiben über /blog erreichbar (keine Waisen).
+_REL_CACHE: dict = {}
+
+
+def _post_terms(slug: str, lang: str) -> set:
+    d = blog_post_data(slug, lang) or {}
+    txt = " ".join([d.get("title", ""), d.get("excerpt", "")]
+                   + [s.get("heading", "") for s in d.get("sections", [])]
+                   + [f.get("q", "") for f in d.get("faqs", [])])
+    return set(re.findall(r"[a-zäöüß]{4,}", txt.lower()))
+
+
+def related_blog_slugs(slug: str, lang: str, k: int = 6) -> list:
+    """Die k thematisch ähnlichsten Posts (Jaccard über Titel/Auszug/Überschriften).
+
+    Sitzweit häufige Begriffe (>70% der Posts, z.B. 'twitch', 'download') werden
+    verworfen — sonst dominiert das gemeinsame Vokabular und die Auswahl wird beliebig.
+    """
+    key = (lang, k)
+    if key not in _REL_CACHE:
+        terms = {s: _post_terms(s, lang) for s in BLOG_ORDER}
+        n = len(terms) or 1
+        df: dict = {}
+        for ts in terms.values():
+            for w in ts:
+                df[w] = df.get(w, 0) + 1
+        common = {w for w, c in df.items() if c > 0.7 * n}
+        terms = {s: (ts - common) for s, ts in terms.items()}
+        ranked = {}
+        for a in BLOG_ORDER:
+            scored = []
+            for b in BLOG_ORDER:
+                if b == a:
+                    continue
+                ta, tb = terms[a], terms[b]
+                j = len(ta & tb) / len(ta | tb) if (ta or tb) else 0.0
+                scored.append((-j, b))          # Tie-Break alphabetisch = stabiler Build
+            scored.sort()
+            ranked[a] = [b for _, b in scored[:k]]
+        _REL_CACHE[key] = ranked
+    return _REL_CACHE[key].get(slug, [])
+
+
 # --------------------------------------------------------------------------- #
 # JSON-LD (strukturierte Daten für SEO + AEO)
 # --------------------------------------------------------------------------- #
@@ -929,11 +976,9 @@ def render_blog_post(lang: str, slug: str) -> "str | None":
         f'<div class="faq-a"><p>{esc(f["a"])}</p></div></details>'
         for f in d.get("faqs", [])
     )
-    # Verwandte Guides (andere Posts)
+    # Verwandte Guides: die thematisch nächsten, nicht alle (siehe related_blog_slugs).
     related = []
-    for other in BLOG_ORDER:
-        if other == slug:
-            continue
+    for other in related_blog_slugs(slug, lang):
         od = blog_post_data(other, lang)
         if not od:
             continue
