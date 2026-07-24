@@ -2270,6 +2270,26 @@ def _compare_faq_node(lang: str, slug: str, canonical: str) -> dict:
                  "acceptedAnswer": {"@type": "Answer", "text": a["faq_a2"]}}]}
 
 
+def _usecase_html(c: dict) -> str:
+    """Seitenspezifischer Fakten-Abschnitt einer Landingpage ('usecase' in _landing.py).
+
+    Existiert, weil die 17 Landings ~64% ihres Textes teilten (Tool-UI + generischer
+    Werbeblock) — Googles "substantially similar pages". Dieser Abschnitt trägt das,
+    was NUR für diesen Anwendungsfall gilt: echte Ausgabeformate, Grenzen, Eigenheiten.
+    Jede Aussage ist gegen den Client-Code geprüft (siehe Commit-Historie)."""
+    u = c.get("usecase")
+    if not u or not u.get("paragraphs"):
+        return ""
+    paras = "".join(f"<p>{esc(p)}</p>" for p in u["paragraphs"])
+    rows = "".join(
+        f'<tr><th scope="row">{esc(f["label"])}</th><td>{esc(f["value"])}</td></tr>'
+        for f in u.get("facts", []) if f.get("label"))
+    table = (f'<div class="tblwrap"><table class="dtable"><tbody>{rows}</tbody></table></div>'
+             if rows else "")
+    return (f'<section class="block usecase"><h2>{esc(u["heading"])}</h2>'
+            f'<div class="prose">{paras}</div>{table}</section>')
+
+
 def _compare_faq_html(lang: str, name: str) -> str:
     """Sichtbarer FAQ-Block für Compare-/Alternatives-Seiten.
 
@@ -3008,6 +3028,7 @@ def render_landing(lang: str, slug: str) -> "str | None":
     <p class="trust">{esc(t["trust"])}</p>
   </section>
   <section class="prose"><p>{esc(c["intro"])}</p></section>
+  {_usecase_html(c)}
   {features_block}
   <section id="how" class="block"><h2>{esc(c.get("how_h2") or t["how_h2"])}</h2><ol class="steps">{how_steps}</ol></section>
   {_ad_slot(t, "landing-mid")}
@@ -3029,7 +3050,17 @@ def md_landing(lang: str, slug: str) -> "str | None":
     bu = base_url()
     L = ["# " + c["h1"], "", "> " + c["sub"], "",
          f"Source: {bu}{landing_path(lang, slug)}  ·  Free to quote and cite with attribution to vodfetch.", "",
-         c["lead"], "", c["intro"], "", "## Frequently asked questions", ""]
+         c["lead"], "", c["intro"], ""]
+    u = c.get("usecase")
+    if u and u.get("paragraphs"):
+        L += [f"## {u['heading']}", ""]
+        for p in u["paragraphs"]:
+            L += [p, ""]
+        if u.get("facts"):
+            L += ["| | |", "|---|---|"]
+            L += [f"| **{f['label']}** | {f['value']} |" for f in u["facts"] if f.get("label")]
+            L += [""]
+    L += ["## Frequently asked questions", ""]
     for f in c["faqs"]:
         L += [f"### {f['q']}", "", f["a"], ""]
     return "\n".join(L) + "\n"
