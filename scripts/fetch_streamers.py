@@ -28,7 +28,9 @@ GQL = "https://gql.twitch.tv/gql"
 CLIENT_ID = "kimne78kx3ncx6brgo4mv6wki5h1ko"  # Twitchs öffentliche Web-Client-ID
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
-CLIP_COUNT = 12
+# 50 statt 12: die Seite zeigt weiterhin nur die Top-12, aber die berechnete Analyse
+# (Kategorie-Verteilung, Jahre, Längen) wird über 50 Clips deutlich belastbarer.
+CLIP_COUNT = 50
 
 QUERY = """
 query($l:String!,$n:Int!){ user(login:$l){

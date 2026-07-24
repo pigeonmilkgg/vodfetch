@@ -1113,6 +1113,11 @@ CSS = r"""
 .dlbtn{display:inline-block;padding:5px 12px;border-radius:999px;background:var(--purple);color:#fff;
   font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;transition:background .15s}
 .dlbtn:hover{background:var(--purple2)}
+.yrlist{list-style:none;margin:14px 0 4px;padding:0;display:grid;gap:6px}
+.yrlist li{display:flex;align-items:center;gap:10px;font-size:14px}
+.yrlist .yr{width:4.2em;color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+.yrlist .yrbar{height:10px;min-width:3px;border-radius:999px;background:linear-gradient(90deg,var(--purple),var(--purple2));display:block}
+.yrlist .yrn{color:var(--muted);font-variant-numeric:tabular-nums}
 .chq{margin:16px 0;padding:14px 18px;border-left:3px solid var(--purple);background:var(--panel);border-radius:0 10px 10px 0}
 .chq p{margin:0;font-style:italic;color:var(--text)}
 .chq footer{margin-top:8px;font-size:13px;color:var(--muted);font-style:normal}
@@ -1732,7 +1737,7 @@ async function dlSegments(ref,q,name){
   if(isLive){if(G('stopBtn'))$('stopBtn').classList.remove('hidden');log('Recording live → TS… press Stop to finish');
     var fails=0,liveStart=Date.now(),LIVE_MAX_MS=3*3600*1000;media.segs.forEach(function(s){seen[s.url]=1});await pump(media.segs,0);
     while(!clientStop){await sleep((media.target||2)*1000);
-      if(Date.now()-liveStart>LIVE_MAX_MS){log('⏱ Live-Aufnahme nach 3 Std. automatisch gestoppt (Missbrauchsschutz). Erneut starten für weitere 3 Std.','ok');break}
+      if(Date.now()-liveStart>LIVE_MAX_MS){log('⏱ Live recording stopped automatically after 3 hours (abuse protection). Start it again for another 3 hours.','ok');break}
       try{var rr=await fetch(P(q.url));if(rr.ok){var mm=parseMedia(await rr.text(),baseOf(q.url));var fresh=mm.segs.filter(function(s){return !seen[s.url]});fresh.forEach(function(s){seen[s.url]=1});if(fresh.length){fails=0;await pump(fresh,0)}else{fails++}if(mm.ended)break}else{fails++}}catch(e){fails++}
       if(fails>=8){log('Stream ended or unreachable.','ok');break}}
   }else{log('Downloading '+list.length+' segments → TS…');await pump(list,list.length)}
@@ -3247,29 +3252,130 @@ def _st_stats_html(d: dict, login: str, lang: str) -> str:
             f'<div class="tblwrap"><table class="dtable"><tbody>{body}</tbody></table></div></section>')
 
 
-def _st_insight(d: dict) -> str:
-    """Ein Satz, komplett aus den Clip-Daten gerechnet."""
+def _st_analysis(d: dict) -> str:
+    """Aus den 50 gemessenen Clips GERECHNETE Analyse — kein Satz ist hier geschrieben.
+
+    Das ist der Inhalt, den kein Konkurrent hat und den auch kein Sprachmodell erfinden
+    kann: Kategorie-Verteilung, Zeitspanne und Längen entstehen aus den Messwerten selbst.
+    Angezeigt wird weiterhin nur die Top-12-Tabelle; gerechnet wird über alle 50."""
     clips = d.get("clips") or []
-    if not clips:
+    if len(clips) < 10:
         return ""
+    name = d["name"]
+    n = len(clips)
     total = sum(c.get("views", 0) for c in clips)
-    dates = sorted(c["date"] for c in clips if c.get("date"))
-    games = [c["game"] for c in clips if c.get("game")]
-    bits = [f'Together, these {len(clips)} clips have been watched {_st_num(total)} times.']
+    top = max(clips, key=lambda c: c.get("views", 0))
+
+    # Kategorien nach Gesamtaufrufen
+    by_game: dict = {}
+    for c in clips:
+        g = (c.get("game") or "").strip()
+        if not g:
+            continue
+        e = by_game.setdefault(g, {"n": 0, "views": 0})
+        e["n"] += 1
+        e["views"] += c.get("views", 0)
+    games = sorted(by_game.items(), key=lambda kv: -kv[1]["views"])
+
+    # Jahre
+    years: dict = {}
+    for c in clips:
+        y = (c.get("date") or "")[:4]
+        if y.isdigit():
+            years[y] = years.get(y, 0) + 1
+    yr_sorted = sorted(years.items())
+    peak_year = max(years.items(), key=lambda kv: (kv[1], kv[0]))[0] if years else ""
+
+    # Längen
+    durs = sorted(c.get("secs", 0) for c in clips if c.get("secs"))
+    med = durs[len(durs) // 2] if durs else 0
+
+    # Die Formulierung folgt dem BEFUND, nicht einer festen Schablone: ein Ein-Kategorie-
+    # Kanal wird anders beschrieben als ein Variety-Kanal, ein Ausreißer-Clip anders als ein
+    # gleichmäßiges Feld. Dadurch sagen die 41 Seiten Verschiedenes, weil ihre Daten
+    # verschieden sind — nicht, weil Sätze zufällig variiert würden.
+    bits = []
+    if games:
+        g0, s0 = games[0]
+        share = (s0["views"] / total * 100) if total else 0
+        nk = len(by_game)
+        if share >= 70:
+            bits.append(f"{name} is, by the numbers, overwhelmingly a{'n' if esc(g0)[:1].lower() in 'aeiou' else ''} "
+                        f"{esc(g0)} channel: that one category carries {round(share)}% of all views across the "
+                        f"{n} most-watched clips ({_st_num(s0['views'])} of {_st_num(total)}, from {s0['n']} clips).")
+        elif nk >= 8:
+            bits.append(f"{name} is a genuinely varied channel — {nk} different categories appear across the "
+                        f"{n} most-watched clips, led by {esc(g0)} at {round(share)}% of views "
+                        f"({_st_num(s0['views'])} of {_st_num(total)}).")
+        else:
+            bits.append(f"Across {name}’s {n} most-watched clips, {esc(g0)} draws the most views — "
+                        f"{_st_num(s0['views'])} of {_st_num(total)} ({round(share)}%) from {s0['n']} "
+                        f"clip{'s' if s0['n'] != 1 else ''}"
+                        + (f", ahead of {esc(games[1][0])}." if len(games) > 1 else "."))
+    if yr_sorted:
+        span = int(yr_sorted[-1][0]) - int(yr_sorted[0][0])
+        peak_share = years[peak_year] / n
+        if peak_share >= 0.5:
+            bits.append(f"The set is concentrated in a single year: {years[peak_year]} of {n} clips were "
+                        f"created in {peak_year}.")
+        elif span >= 5:
+            bits.append(f"Its viral moments are spread thin across {span + 1} years "
+                        f"({yr_sorted[0][0]}–{yr_sorted[-1][0]}), peaking in {peak_year}.")
+        else:
+            bits.append(f"The clips span {yr_sorted[0][0]}–{yr_sorted[-1][0]}, with the most "
+                        f"({years[peak_year]}) created in {peak_year}.")
+    if med:
+        t_views = top.get("views", 0)
+        second = sorted((c.get("views", 0) for c in clips), reverse=True)[1:2]
+        if second and second[0] and t_views >= 2 * second[0]:
+            bits.append(f"One clip dominates: the top one has {_st_num(t_views)} views, more than double "
+                        f"the next ({_st_num(second[0])}). Median length across the set is {_st_dur(med)}.")
+        else:
+            bits.append(f"Median clip length is {_st_dur(med)}; the most-watched one runs "
+                        f"{_st_dur(top.get('secs'))} and has {_st_num(t_views)} views.")
+    para = " ".join(bits)
+
+    gr = "".join(
+        f'<tr><th scope="row">{esc(g)}</th><td class="num">{v["n"]}</td>'
+        f'<td class="num">{_st_num(v["views"])}</td>'
+        f'<td class="num">{round(v["views"] / total * 100) if total else 0}%</td></tr>'
+        for g, v in games[:6])
+    tbl = (f'<div class="tblwrap"><table class="dtable"><thead><tr>'
+           f'<th scope="col">Category</th><th scope="col">Clips</th>'
+           f'<th scope="col">Views</th><th scope="col">Share</th></tr></thead>'
+           f'<tbody>{gr}</tbody></table></div>') if gr else ""
+    yb = "".join(
+        f'<li><span class="yr">{esc(y)}</span>'
+        f'<i class="yrbar" style="width:{round(c / max(years.values()) * 100)}%"></i>'
+        f'<span class="yrn">{c}</span></li>' for y, c in yr_sorted)
+    ybar = f'<ul class="yrlist">{yb}</ul>' if yb else ""
+    return (f'<section class="block"><h2>What {esc(name)}’s clips are actually about</h2>'
+            f'<p>{para}</p>{tbl}'
+            + (f'<h3>When those clips were created</h3>{ybar}' if ybar else "")
+            + f'<p class="cbnote">Computed from the {n} most-viewed clips on the channel, '
+              f'measured {_st_longdate(d.get("checked", ""))}. Categories are the ones Twitch '
+              f'recorded on each clip.</p></section>')
+
+
+def _st_insight(shown: list) -> str:
+    """Ein Satz über die TATSÄCHLICH gezeigten Clips (nicht über alle gemessenen) —
+    sonst behauptet die Zeile eine Anzahl, die unter ihr niemand nachzählen kann."""
+    if not shown:
+        return ""
+    total = sum(c.get("views", 0) for c in shown)
+    dates = sorted(c["date"] for c in shown if c.get("date"))
+    bits = [f'Together, the {len(shown)} clips below have been watched {_st_num(total)} times.']
     if len(dates) >= 2:
         bits.append(f"The oldest is from {_st_longdate(dates[0])}, the newest from {_st_longdate(dates[-1])}.")
-    if games:
-        top = max(set(games), key=games.count)
-        cnt = games.count(top)
-        if cnt > 1:
-            bits.append(f'{esc(top)} is the most common category among them ({cnt} of {len(clips)}).')
     return '<p class="cbnote">' + " ".join(bits) + "</p>"
 
 
 def _st_clips_html(d: dict, login: str, lang: str) -> str:
     """Top-Clips als Tabelle. Clips laufen auf Twitch nie ab — daher sind sie backbar,
     anders als VODs, die nach 7–60 Tagen verschwinden würden."""
-    clips = d.get("clips") or []
+    # Gemessen werden 50 Clips (für die berechnete Analyse), gezeigt die Top-12 —
+    # eine 50-Zeilen-Tabelle wäre für Leser wie für Crawler nur Ballast.
+    clips = (d.get("clips") or [])[:12]
     if not clips:
         return ""
     dl = landing_path(lang, "twitch-clip-downloader")
@@ -3285,7 +3391,7 @@ def _st_clips_html(d: dict, login: str, lang: str) -> str:
             f'<td class="num">{esc(_st_shortdate(c.get("date")))}</td>'
             f'<td><a class="dlbtn" href="{esc(dl)}?url={esc(url)}&amp;go=1">MP4</a></td></tr>')
     return (f'<section class="block"><h2>{esc(d["name"])}’s most-watched clips</h2>'
-            + _st_insight(d)
+            + _st_insight(clips)
             + '<div class="tblwrap"><table class="dtable clipt"><thead><tr>'
             '<th scope="col">#</th><th scope="col">Clip</th><th scope="col">Category</th><th scope="col">Length</th>'
             '<th scope="col">Views</th><th scope="col">Created</th><th scope="col">Download</th>'
@@ -3425,6 +3531,7 @@ def render_streamer(login: str) -> "str | None":
     <script>window.TWDL_BOOT={json.dumps(login)};</script>
 {_tool_card_html(t, lang)}
     {_st_clips_html(d, login, lang)}
+    {_st_analysis(d)}
     <h2>{esc(t["faq_h2"])}</h2><div class="faqs">{faq_html}</div>
     {_ad_slot(t, "streamer-low")}
     <section class="block"><h2>{esc(ui["rel_h"])}</h2><div class="cards">{rel_cards}{guides}</div>
@@ -3459,7 +3566,8 @@ def md_streamer(login: str) -> "str | None":
         facts.append(("Most recent category", d["last_game"]))
     facts.append(("Data measured", _st_longdate(d.get("checked", "")) + " · Twitch public API"))
     L += ["## Measured facts", ""] + [f"- **{k}:** {v}" for k, v in facts] + [""]
-    clips = d.get("clips") or []
+    all_clips = d.get("clips") or []
+    clips = all_clips[:12]
     if clips:
         L += [f"## {d['name']}'s most-watched clips", "",
               "| # | Clip | Category | Length | Views | Created |",
@@ -3470,6 +3578,29 @@ def md_streamer(login: str) -> "str | None":
                      f"{_st_dur(c.get('secs'))} | {_st_num(c.get('views'))} | {c.get('date') or ''} |")
         L += ["", f"Clip view counts measured {_st_longdate(d.get('checked', ''))}. "
                   "Twitch clips do not expire; VODs do.", ""]
+    # Berechnete Verteilung über ALLE gemessenen Clips — dieselbe Analyse wie auf der
+    # HTML-Seite, damit zitierende Maschinen dieselben Zahlen sehen.
+    if len(all_clips) >= 10:
+        agg: dict = {}
+        for c in all_clips:
+            g = (c.get("game") or "").strip()
+            if g:
+                e = agg.setdefault(g, {"n": 0, "v": 0})
+                e["n"] += 1
+                e["v"] += c.get("views", 0)
+        tot = sum(c.get("views", 0) for c in all_clips) or 1
+        L += [f"## Category breakdown ({len(all_clips)} most-viewed clips)", "",
+              "| Category | Clips | Views | Share |", "|---|---|---|---|"]
+        for g, v in sorted(agg.items(), key=lambda kv: -kv[1]["v"])[:8]:
+            L.append(f"| {g} | {v['n']} | {_st_num(v['v'])} | {round(v['v'] / tot * 100)}% |")
+        yrs: dict = {}
+        for c in all_clips:
+            y = (c.get("date") or "")[:4]
+            if y.isdigit():
+                yrs[y] = yrs.get(y, 0) + 1
+        if yrs:
+            L += ["", "Clips per year: " + ", ".join(f"{y}: {c}" for y, c in sorted(yrs.items())), ""]
+        L += [""]
     L += [f"## {ui['faq_f_q'].format(name=d['name'])}", "", ui["faq_f_a"].format(n=n_fmt, d=dtxt), ""]
     return "\n".join(L) + "\n"
 
