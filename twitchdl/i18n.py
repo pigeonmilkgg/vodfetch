@@ -40,6 +40,11 @@ DEFAULT_LANG = "en"
 # bleiben im Repo erhalten. Nicht gebaute Sprachen werden per 301 auf EN umgeleitet
 # (siehe netlify.toml).
 _ENABLED = [c.strip().lower() for c in os.environ.get("TWITCHDL_LANGS", "en").split(",") if c.strip()]
+# DEFAULT_LANG muss IMMER gebaut werden: index.html/Root, self-canonical, hreflang x-default und
+# alle EN-Fallbacks setzen die Standardsprache als Wurzel voraus. Ein TWITCHDL_LANGS ohne "en"
+# (z.B. "de,fr") würde sonst gar keine Startseite erzeugen → Site-Root 404.
+if DEFAULT_LANG not in _ENABLED:
+    _ENABLED.append(DEFAULT_LANG)
 LANGUAGES: dict[str, dict] = {k: v for k, v in ALL_LANGUAGES.items() if k in _ENABLED} \
     or {DEFAULT_LANG: ALL_LANGUAGES[DEFAULT_LANG]}
 
@@ -180,7 +185,8 @@ EN = {
         "This free Twitch downloader lets you save Twitch VODs (past broadcasts and "
         "highlights), clips and live streams as high-quality MP4 files. Paste a Twitch "
         "link, pick a quality, and download — right in your browser, with no software to "
-        "install, no Twitch account and no watermarks. We don't track you or store your files."
+        "install, no Twitch account and no watermarks. Your files are never uploaded or "
+        "stored — you just see a couple of small, clearly-marked ads."
     ),
 
     "types_h2": "Download every kind of Twitch content",

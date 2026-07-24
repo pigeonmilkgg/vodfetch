@@ -2,12 +2,23 @@
 # Build:  TWITCHDL_BASE_URL="https://DEINE-DOMAIN" python build_static.py
 # Deploy: netlify deploy --prod   (publish-Ordner = dist)
 
+# Hinweis: Produktions-Deploys laufen per CLI-Direct-Upload (scripts/deploy.sh), NICHT
+# über einen Netlify-Git-Build. Dieser [build]-Block ist nur ein Sicherheitsnetz, falls
+# doch mal ein Netlify-Build getriggert wird. Er MUSS dieselben Env-Vars setzen wie
+# deploy.sh — sonst fiele der Build auf den teuren Netlify-Bandbreiten-Proxy zurück
+# (der Kosten-Missbrauchsfall 2026-07-07) und verlöre AdSense/sameAs/Bing-Verify.
 [build]
   publish = "dist"
-  command = "pip install -r requirements.txt && TWITCHDL_BASE_URL=\"$URL\" python build_static.py"
+  command = "pip install -r requirements.txt && python build_static.py"
 
 [build.environment]
   PYTHON_VERSION = "3.11"
+  TWITCHDL_BASE_URL = "https://vodfetch.com"
+  TWITCHDL_PROXY_BASE = "https://vodfetch-proxy.gentle-salad-3beb.workers.dev"
+  TWITCHDL_ADSENSE_CLIENT = "ca-pub-2059165850341947"
+  TWITCHDL_SAMEAS = "https://github.com/pigeonmilkgg/vodfetch"
+  TWITCHDL_REPO = "https://github.com/pigeonmilkgg/vodfetch"
+  TWITCHDL_BING_VERIFY = "DD10C1E27169A8BD038386A868573443"
 
 [functions]
   directory = "netlify/functions"
