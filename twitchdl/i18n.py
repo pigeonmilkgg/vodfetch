@@ -83,8 +83,14 @@ EN = {
     "nav_editorial": "Editorial policy",
     "nav_colophon": "How this site is built",
     "cb_recent_h": "Recent VODs & clips",
-    "cb_partner": "This channel is a Partner/Affiliate — VODs are typically kept for up to 60 days.",
-    "cb_basic": "Not flagged as a Partner/Affiliate — VODs may be removed in as little as 7 days (up to 14 with Prime/Turbo), so grab what you want soon.",
+    # Twitch-Aufbewahrung nach Kontotyp (Twitch Support, 2025-05-12):
+    # 60 Tage für Prime, Turbo und Partner · 14 Tage für Affiliates · 7 Tage für alle anderen.
+    # Prime/Turbo ist über die roles-Query NICHT auslesbar — ein Prime-Streamer ohne
+    # Affiliate-Status wird deshalb mit 7 Tagen unterschätzt. Diese Richtung ist die sichere
+    # (warnt zu früh statt zu spät), muss aber als Schätzung kenntlich bleiben.
+    "cb_partner": "This channel is a Twitch Partner — past broadcasts are typically kept for up to 60 days.",
+    "cb_affiliate": "This channel is a Twitch Affiliate — past broadcasts are typically kept for about 14 days, so save what you want soon.",
+    "cb_basic": "Not flagged as a Partner or Affiliate — past broadcasts may be removed in as little as 7 days (60 with Prime or Turbo, which Twitch does not expose here), so grab what you want soon.",
     "cb_clips_h": "Popular clips (these don't expire)",
     "cb_empty": "No public VODs or clips found for this channel.",
     "cb_exp_soon": "⏳ may already be close to expiring",
@@ -340,8 +346,9 @@ DE = {
     "nav_editorial": "Redaktionsrichtlinie",
     "nav_colophon": "Wie diese Seite gebaut ist",
     "cb_recent_h": "Letzte VODs & Clips",
-    "cb_partner": "Dieser Channel ist Partner/Affiliate — VODs bleiben meist bis zu 60 Tage erhalten.",
-    "cb_basic": "Kein Partner/Affiliate-Status erkannt — VODs können schon nach 7 Tagen verschwinden (bis zu 14 mit Prime/Turbo). Am besten bald sichern.",
+    "cb_partner": "Dieser Channel ist Twitch-Partner — vergangene Streams bleiben meist bis zu 60 Tage erhalten.",
+    "cb_affiliate": "Dieser Channel ist Twitch-Affiliate — vergangene Streams bleiben meist etwa 14 Tage erhalten. Am besten bald sichern.",
+    "cb_basic": "Kein Partner- oder Affiliate-Status erkannt — vergangene Streams können schon nach 7 Tagen verschwinden (60 mit Prime oder Turbo, was Twitch hier nicht ausgibt). Am besten bald sichern.",
     "cb_clips_h": "Beliebte Clips (verfallen nicht)",
     "cb_empty": "Keine öffentlichen VODs oder Clips für diesen Channel gefunden.",
     "cb_exp_soon": "⏳ könnte bald ablaufen",

@@ -70,6 +70,38 @@ def esc(s) -> str:
     return _html.escape(str(s if s is not None else ""), quote=True)
 
 
+_LINKIFY_RE = re.compile(r"(?<![\w/])(/(?:blog/[a-z0-9-]+|compare/[a-z0-9-]+|alternatives/[a-z0-9-]+"
+                         r"|twitch-[a-z0-9-]+|streamer|glossary|methodology|privacy|editorial-policy))"
+                         r"(?![\w/-])")
+
+
+def _linkify(escaped: str) -> str:
+    """Wandelt interne Pfade im (bereits escapten) Fließtext in echte Links.
+
+    Autoren verweisen im Text auf Geschwisterseiten ("siehe /blog/xy"). Ohne das hier
+    stünde der Pfad als toter Klartext auf der Seite — schlecht für Leser wie für den
+    Link-Graph. Es wird NUR verlinkt, was auch gebaut wird; unbekannte Pfade bleiben Text,
+    damit nie ein 404 entsteht (das Audit würde ihn ohnehin als broken link melden)."""
+    def repl(m):
+        path = m.group(1)
+        if not _internal_path_exists(path):
+            return path
+        return f'<a href="{path}">{path}</a>'
+    return _LINKIFY_RE.sub(repl, escaped)
+
+
+def _internal_path_exists(path: str) -> bool:
+    if path in ("/streamer", "/glossary", "/methodology", "/privacy", "/editorial-policy"):
+        return True
+    if path.startswith("/blog/"):
+        return path[len("/blog/"):] in BLOG_POSTS
+    if path.startswith("/compare/") or path.startswith("/alternatives/"):
+        return path.rsplit("/", 1)[-1] in {m["slug"] for m in (COMPARE_META or [])}
+    if path.startswith("/twitch-"):
+        return path[1:] in (LANDING_META or {})
+    return False
+
+
 def _lang_phrase(prefix: str = "in ") -> str:
     """'in 14 languages' while multilingual, '' when the build is English-only.
 
@@ -791,6 +823,7 @@ def _document(lang: str, head_inner: str, body_inner: str, tool_js: bool = False
             "gifHint": t.get("tool_gif_hint", ""),
             "cbRecentH": t.get("cb_recent_h", "Recent VODs & clips"),
             "cbPartner": t.get("cb_partner", ""),
+            "cbAffiliate": t.get("cb_affiliate", ""),
             "cbBasic": t.get("cb_basic", ""),
             "cbClipsH": t.get("cb_clips_h", "Popular clips"),
             "cbEmpty": t.get("cb_empty", "No public VODs or clips found for this channel."),
@@ -958,7 +991,7 @@ def render_blog_post(lang: str, slug: str) -> "str | None":
     toc_items = []
     for i, s in enumerate(d.get("sections", [])):
         sid = f"sec-{i + 1}"
-        paras = "".join(f"<p>{esc(p)}</p>" for p in s.get("paragraphs", []))
+        paras = "".join(f"<p>{_linkify(esc(p))}</p>" for p in s.get("paragraphs", []))
         sec_html.append(f'<h2 id="{sid}">{esc(s["heading"])}</h2>{paras}')
         toc_items.append(f'<li><a href="#{sid}">{esc(s["heading"])}</a></li>')
     toc_html = (f'<nav class="toc" aria-label="{esc(t.get("toc_label", "On this page"))}">'
@@ -973,7 +1006,7 @@ def render_blog_post(lang: str, slug: str) -> "str | None":
     # FAQ
     faq_html = "".join(
         f'<details class="faq"><summary><h3>{esc(f["q"])}</h3><span class="chev" aria-hidden="true">＋</span></summary>'
-        f'<div class="faq-a"><p>{esc(f["a"])}</p></div></details>'
+        f'<div class="faq-a"><p>{_linkify(esc(f["a"]))}</p></div></details>'
         for f in d.get("faqs", [])
     )
     # Verwandte Guides: die thematisch nächsten, nicht alle (siehe related_blog_slugs).
@@ -1771,35 +1804,42 @@ async function renderChannelBrowse(login){
   var d=await gqlReq({query:q,variables:{l:login}});var u=d&&d.data&&d.data.user;
   if(!u)throw new Error(I18N.cbNotFound||'Channel not found.');
   cbLogin=login;var box=G('channelBox');if(!box)return;
-  var partner=!!(u.roles&&(u.roles.isPartner||u.roles.isAffiliate));
+  /* Aufbewahrung nach Kontotyp (Twitch Support): 60 Tage Partner (auch Prime/Turbo),
+     14 Tage Affiliate, 7 Tage sonst. Partner und Affiliate NICHT zusammenwerfen — ein
+     Affiliate-VOD wäre sonst mit 60 statt 14 Tagen gerechnet und das Badge bliebe genau
+     dann aus, wenn es gebraucht wird. Prime/Turbo gibt die roles-Query nicht her; ein
+     Prime-Kanal wird daher mit 7 unterschätzt (warnt zu früh = sichere Richtung). */
+  var isPartner=!!(u.roles&&u.roles.isPartner),isAff=!!(u.roles&&u.roles.isAffiliate);
+  var retDays=isPartner?60:(isAff?14:7);cbRetDays=retDays;
   var vids=((u.videos&&u.videos.edges)||[]);var clips=((u.clips&&u.clips.edges)||[]);
   cbCursor=(u.videos&&u.videos.pageInfo&&u.videos.pageInfo.hasNextPage&&vids.length)?vids[vids.length-1].cursor:null;
   var html='<h3>'+(u.profileImageURL?'<img class="cbavatar" src="'+eh(u.profileImageURL)+'" alt="" referrerpolicy="no-referrer">':'')+eh(u.displayName||login)+'</h3>';
-  html+='<p class="cbnote">'+eh(partner?I18N.cbPartner:I18N.cbBasic)+'</p>';
-  if(vids.length){html+='<p class="cbh4">'+eh(I18N.cbRecentH)+'</p><div class="cbgrid" id="cbVidGrid">'+vids.map(function(e){return cbCard(e.node,'vod',partner)}).join('')+'</div>'}
-  if(clips.length){html+='<p class="cbh4">'+eh(I18N.cbClipsH)+'</p><div class="seg cbseg" id="cbPeriodSeg">'+cbPeriodBtns('ALL_TIME')+'</div><div class="cbgrid" id="cbClipGrid">'+clips.map(function(e){return cbCard(e.node,'clip',partner)}).join('')+'</div>'}
+  html+='<p class="cbnote">'+eh(isPartner?I18N.cbPartner:(isAff?I18N.cbAffiliate:I18N.cbBasic))+'</p>';
+  if(vids.length){html+='<p class="cbh4">'+eh(I18N.cbRecentH)+'</p><div class="cbgrid" id="cbVidGrid">'+vids.map(function(e){return cbCard(e.node,'vod',retDays)}).join('')+'</div>'}
+  if(clips.length){html+='<p class="cbh4">'+eh(I18N.cbClipsH)+'</p><div class="seg cbseg" id="cbPeriodSeg">'+cbPeriodBtns('ALL_TIME')+'</div><div class="cbgrid" id="cbClipGrid">'+clips.map(function(e){return cbCard(e.node,'clip',retDays)}).join('')+'</div>'}
   if(!vids.length&&!clips.length)html+='<p class="cbnote">'+eh(I18N.cbEmpty)+'</p>';
   box.innerHTML=html;box.classList.remove('hidden');
   box.onclick=function(ev){var t=ev.target;var card=t&&t.closest?t.closest('.cbcard'):null;if(card&&card.dataset.url){$('url').value=card.dataset.url;analyze()}};
   if(cbCursor){var more=document.createElement('button');more.type='button';more.className='ghost';more.textContent=I18N.cbMore;
     more.onclick=function(){loadMoreChannel()};box.appendChild(more)}
 }
+var cbRetDays=null;
 async function loadMoreChannel(){if(!cbCursor||!cbLogin)return;
   var q='query($l:String!,$c:Cursor!){user(login:$l){videos(first:24,type:ARCHIVE,sort:TIME,after:$c){pageInfo{hasNextPage} '+
     'edges{cursor node{id title lengthSeconds viewCount publishedAt previewThumbnailURL(width:320,height:180) game{displayName}}}}}}';
   var d=await gqlReq({query:q,variables:{l:cbLogin,c:cbCursor}});var v=d&&d.data&&d.data.user&&d.data.user.videos;if(!v)return;
-  var edges=v.edges||[];var grid=G('cbVidGrid');if(grid)grid.insertAdjacentHTML('beforeend',edges.map(function(e){return cbCard(e.node,'vod',null)}).join(''));
+  var edges=v.edges||[];var grid=G('cbVidGrid');if(grid)grid.insertAdjacentHTML('beforeend',edges.map(function(e){return cbCard(e.node,'vod',cbRetDays)}).join(''));
   cbCursor=(v.pageInfo&&v.pageInfo.hasNextPage&&edges.length)?edges[edges.length-1].cursor:null;
   var btns=G('channelBox').querySelectorAll('button.ghost');var more=btns[btns.length-1];if(more){if(!cbCursor)more.remove()}
 }
-function cbExpiryBadge(node,partner){if(partner==null)return'';var pub=node.publishedAt?new Date(node.publishedAt).getTime():0;if(!pub)return'';
-  var days=(Date.now()-pub)/86400000;var retDays=partner?60:7;var left=Math.ceil(retDays-days);
+function cbExpiryBadge(node,retDays){if(retDays==null)return'';var pub=node.publishedAt?new Date(node.publishedAt).getTime():0;if(!pub)return'';
+  var days=(Date.now()-pub)/86400000;var left=Math.ceil(retDays-days);
   if(left<=0)return '<span class="cbexp">'+eh(I18N.cbExpSoon)+'</span>';
   if(left<=14)return '<span class="cbexp">~'+left+'d '+eh(I18N.cbExpLeft)+'</span>';return ''}
-function cbCard(node,kind,partner){
+function cbCard(node,kind,retDays){
   var url=kind==='vod'?('https://www.twitch.tv/videos/'+node.id):('https://clips.twitch.tv/'+node.slug);
   var thumb=node.previewThumbnailURL||node.thumbnailURL||'';var dur=node.lengthSeconds!=null?node.lengthSeconds:node.durationSeconds;
-  var badge=kind==='vod'?cbExpiryBadge(node,partner):'';var date=fmtDate(node.publishedAt||node.createdAt);
+  var badge=kind==='vod'?cbExpiryBadge(node,retDays):'';var date=fmtDate(node.publishedAt||node.createdAt);
   var bits=[];if(node.game&&node.game.displayName)bits.push(eh(node.game.displayName));bits.push(ft(dur));if(date)bits.push(date);
   return '<button type="button" class="cbcard" data-url="'+eh(url)+'">'+
     (thumb?'<img loading="lazy" src="'+eh(thumb)+'" alt="" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">':'')+
@@ -3091,7 +3131,7 @@ _ST_UI = {
         "faq_dl_a": "Yes — this page lists the channel's most-watched clips, and the downloader above also handles its past broadcasts (VODs) and live stream; every one saves as MP4, free, without a watermark and without an account. Public VODs only, for as long as Twitch still stores them.",
         "faq_exp_q": "How long do {name}'s VODs stay online?",
         "faq_exp_a_p": "As a Twitch Partner channel, past broadcasts are typically stored for up to 60 days, then deleted automatically. Clips don't expire. If you want to keep a stream, download it before the timer runs out.",
-        "faq_exp_a_np": "Twitch stores past broadcasts for 7 days on basic channels (up to 14 with Prime/Turbo, 60 for Partners), then deletes them automatically. Clips don't expire. If you want to keep a stream, download it in time.",
+        "faq_exp_a_np": "Twitch stores past broadcasts for 7 days on basic channels, about 14 for Affiliates and up to 60 for Partners (and for channels with Prime or Turbo), then deletes them automatically. Clips don't expire. If you want to keep a stream, download it in time.",
         "live_check": "check the live count →", "rel_h": "More streamer pages", "dir_link": "All streamer pages →",
         "note": "vodfetch is not affiliated with {name} or Twitch. Facts above: Twitch public API, {d}; live elements load in your browser.",
     },
@@ -4366,7 +4406,7 @@ def _ai_key_facts() -> dict:
         "watermark": False,
         "runs": "in your browser (segments relayed via a stateless proxy that stores nothing)",
         "open_source": True,
-        "vod_retention": "7 days default, 14 with Prime/Turbo, up to 60 for Affiliates/Partners",
+        "vod_retention": "7 days default, 14 for Affiliates, up to 60 for Partners and Prime/Turbo channels",
     }
 
 
@@ -4393,7 +4433,7 @@ def _ai_quick_answers() -> list:
         ("Best Twitch download quality",
          "Source / 1080p60 when available; also 720p60, 720p, 480p, 360p, 160p and audio-only."),
         ("How long Twitch VODs last",
-         "7 days by default, 14 days with Prime/Turbo, and up to 60 days for Affiliates/Partners — then Twitch auto-deletes them."),
+         "7 days by default, 14 days for Affiliates, and up to 60 days for Partners and Prime/Turbo channels — then Twitch auto-deletes them."),
         ("Account and cost",
          "No account and no payment. The tool is free, runs in your browser, and adds no watermark."),
         ("Twitch chat log",
