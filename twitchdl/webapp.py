@@ -558,6 +558,7 @@ def _tool_card_html(t: dict, lang: str) -> str:
           <select id="quality" onchange="onQuality()"></select>
           <span class="est" id="sizeEst"></span>
         </div>
+        <p class="mutewarn hidden" id="muteWarn"></p>
         <button class="primary big" id="downloadBtn" onclick="startDownload()">{esc(t["tool_download"])}</button>
         <button class="optlink" type="button" id="optBtn" onclick="toggleAdv()">{esc(t["tool_options"])}</button>
         <div class="adv hidden" id="adv">
@@ -574,6 +575,7 @@ def _tool_card_html(t: dict, lang: str) -> str:
             <label class="trimtoggle"><input type="checkbox" id="trimOn" onchange="onTrimToggle()"> {esc(t["tool_trim"])}</label>
             <div class="trimbody hidden" id="trimBody">
               <p class="trimhint">{esc(t["tool_trim_hint"])}</p>
+              <p class="trimhint dim">{esc(t.get("trim_note", ""))}</p>
               <div class="scrub" id="scrub">
                 <div class="scrubthumb hidden" id="scrubThumb"></div>
                 <div class="scrubtrack" id="scrubTrack">
@@ -822,6 +824,8 @@ def _document(lang: str, head_inner: str, body_inner: str, tool_js: bool = False
             "gif": t.get("tool_gif", "Make GIF"),
             "gifHint": t.get("tool_gif_hint", ""),
             "cbRecentH": t.get("cb_recent_h", "Recent VODs & clips"),
+            "muteWarn": t.get("mute_warn", ""),
+            "trimNote": t.get("trim_note", ""),
             "cbPartner": t.get("cb_partner", ""),
             "cbAffiliate": t.get("cb_affiliate", ""),
             "cbBasic": t.get("cb_basic", ""),
@@ -1151,6 +1155,8 @@ CSS = r"""
 .yrlist .yr{width:4.2em;color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
 .yrlist .yrbar{height:10px;min-width:3px;border-radius:999px;background:linear-gradient(90deg,var(--purple),var(--purple2));display:block}
 .yrlist .yrn{color:var(--muted);font-variant-numeric:tabular-nums}
+.mutewarn{margin:10px 0 0;padding:9px 13px;border-radius:9px;background:rgba(255,180,60,.10);border:1px solid rgba(255,180,60,.30);color:#ffcc80;font-size:14px;line-height:1.45}
+.trimhint.dim{opacity:.72;font-size:13px;margin-top:-4px}
 .chq{margin:16px 0;padding:14px 18px;border-left:3px solid var(--purple);background:var(--panel);border-radius:0 10px 10px 0}
 .chq p{margin:0;font-style:italic;color:var(--text)}
 .chq footer{margin-top:8px;font-size:13px;color:var(--muted);font-style:normal}
@@ -1628,9 +1634,11 @@ function parseMedia(text,base){var segs=[],ended=false,target=2,dur=0;
     if(ln.indexOf('#EXT-X-ENDLIST')===0)ended=true;
     else if(ln.indexOf('#EXT-X-TARGETDURATION:')===0){var v=parseFloat(ln.split(':')[1]);if(v)target=v}
     else if(ln.indexOf('#EXTINF:')===0){dur=parseFloat(ln.slice(8).split(',')[0])||0}
-    else if(ln&&ln[0]!=='#'){segs.push({url:/^https?:/.test(ln)?ln:base+ln,dur:dur});dur=0}});
-  var cum=0;segs.forEach(function(s){s.start=cum;cum+=s.dur});
-  return{segs:segs,ended:ended,target:target,total:cum}}
+    /* Twitch benennt DMCA-stummgeschaltete Segmente <n>-muted.ts. Wir zaehlen sie mit,
+       damit der Nutzer VOR dem Download erfaehrt, wieviel Ton fehlen wird. */
+    else if(ln&&ln[0]!=='#'){segs.push({url:/^https?:/.test(ln)?ln:base+ln,dur:dur,muted:/-muted\.ts(\?|$)/.test(ln)});dur=0}});
+  var cum=0,mutedDur=0,mutedN=0;segs.forEach(function(s){s.start=cum;cum+=s.dur;if(s.muted){mutedDur+=s.dur;mutedN++}});
+  return{segs:segs,ended:ended,target:target,total:cum,mutedDur:mutedDur,mutedN:mutedN}}
 async function clipInfo(slug){
   var q='query($s:ID!){clip(slug:$s){title durationSeconds viewCount createdAt thumbnailURL(width:480,height:272) game{displayName} broadcaster{displayName profileImageURL(width:70)} videoQualities{quality frameRate sourceURL} playbackAccessToken(params:{platform:"web",playerBackend:"mediaplayer",playerType:"site"}){signature value}}}';
   var d=await gqlReq({query:q,variables:{s:slug}});var c=d&&d.data&&d.data.clip;
@@ -1698,6 +1706,12 @@ function onTrimEdit(){trim.start=parseTime((G('tStart')||{}).value);trim.end=par
 function selRange(){if(trim.on&&clientRef&&clientRef.kind==='vod'){var s=Math.max(0,trim.start),e=Math.min(totalDur||trim.end,trim.end);if(e<=s)e=totalDur;return[s,e]}return[0,totalDur]}
 function estBytes(){var q=curQ();if(!(clientRef&&clientRef.kind==='vod'&&q&&q.bandwidth))return 0;var r=selRange();return q.bandwidth/8*Math.max(0,r[1]-r[0])}
 function updateEst(){if(G('sizeEst')){var e=estBytes();G('sizeEst').textContent=e>0?('≈ '+fb(e)):''}
+  /* Ehrlichkeit vor dem Download: Twitch liefert DMCA-stummgeschaltete Abschnitte als
+     <n>-muted.ts aus. Kein Downloader kann den Ton zurueckholen — aber wir koennen sagen,
+     wieviel fehlen wird, bevor jemand Stunden herunterlaedt. Macht sonst kein Web-Tool. */
+  if(G('muteWarn')){var mw=G('muteWarn'),mm=null;try{var qi=parseInt(($('quality')||{}).value||'0',10)||0;mm=clientMedia[qi]}catch(e){}
+    if(mm&&mm.mutedN>0){mw.textContent=I18N.muteWarn.replace('{d}',ft(Math.round(mm.mutedDur))).replace('{n}',mm.mutedN);mw.classList.remove('hidden')}
+    else mw.classList.add('hidden')}
   if(trim.on&&G('selDur')){var r=selRange();G('selDur').textContent=ft(r[0])+' → '+ft(r[1])+' = '+ft(r[1]-r[0])}
   if(G('gifBtn')){var ok=false;if(clientRef){if(clientRef.kind==='clip')ok=true;else if(clientRef.kind==='vod'&&trim.on){var d=selRange();ok=(d[1]-d[0])>0&&(d[1]-d[0])<=15.5}}G('gifBtn').classList.toggle('hidden',!ok)}}
 async function makeSink(filename){

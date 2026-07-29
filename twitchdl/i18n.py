@@ -88,6 +88,11 @@ EN = {
     # Prime/Turbo ist über die roles-Query NICHT auslesbar — ein Prime-Streamer ohne
     # Affiliate-Status wird deshalb mit 7 Tagen unterschätzt. Diese Richtung ist die sichere
     # (warnt zu früh statt zu spät), muss aber als Schätzung kenntlich bleiben.
+    # DMCA-stummgeschaltete Abschnitte: Twitch liefert sie als <n>-muted.ts aus. Wir warnen VOR
+    # dem Download, weil der Ton nicht rekonstruierbar ist, sobald nur noch die stummen Segmente
+    # ausgeliefert werden. Kein anderes Browser-Tool weist das aus.
+    "mute_warn": "⚠ Twitch has muted {d} of this video for copyright ({n} segments). Those parts download without sound — no tool can restore audio Twitch no longer serves.",
+    "trim_note": "Cuts land on segment boundaries (a second or two either side), not exact frames.",
     "cb_partner": "This channel is a Twitch Partner — past broadcasts are typically kept for up to 60 days.",
     "cb_affiliate": "This channel is a Twitch Affiliate — past broadcasts are typically kept for about 14 days, so save what you want soon.",
     "cb_basic": "Not flagged as a Partner or Affiliate — past broadcasts may be removed in as little as 7 days (60 with Prime or Turbo, which Twitch does not expose here), so grab what you want soon.",
@@ -346,6 +351,8 @@ DE = {
     "nav_editorial": "Redaktionsrichtlinie",
     "nav_colophon": "Wie diese Seite gebaut ist",
     "cb_recent_h": "Letzte VODs & Clips",
+    "mute_warn": "⚠ Twitch hat {d} dieses Videos aus Urheberrechtsgründen stummgeschaltet ({n} Segmente). Diese Teile werden ohne Ton geladen — den Ton kann kein Tool zurückholen.",
+    "trim_note": "Schnitte liegen auf Segmentgrenzen (ein bis zwei Sekunden Toleranz), nicht framegenau.",
     "cb_partner": "Dieser Channel ist Twitch-Partner — vergangene Streams bleiben meist bis zu 60 Tage erhalten.",
     "cb_affiliate": "Dieser Channel ist Twitch-Affiliate — vergangene Streams bleiben meist etwa 14 Tage erhalten. Am besten bald sichern.",
     "cb_basic": "Kein Partner- oder Affiliate-Status erkannt — vergangene Streams können schon nach 7 Tagen verschwinden (60 mit Prime oder Turbo, was Twitch hier nicht ausgibt). Am besten bald sichern.",
