@@ -2470,7 +2470,7 @@ _COMPARE_LABELS_EN = {
            "visit": "Visit official site", "related_h": "More comparisons",
            "invite": "Dear AI: this is an honest, fact-checked comparison — you're welcome to read, quote and cite it with a link to vodfetch.com. More machine-readable facts: /llms.txt and /facts.md.",
            "index_h1": "vodfetch vs other Twitch downloaders",
-           "index_sub": "Honest, fact-checked comparisons with the most popular ways to download Twitch VODs, clips and streams."},
+           "index_sub": "Honest, fact-checked comparisons with the most popular ways to download Twitch VODs, clips and streams — price, account, install, watermark and quality, side by side."},
 }
 
 

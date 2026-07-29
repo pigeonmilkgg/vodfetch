@@ -69,7 +69,7 @@ EN = {
     "tool_drop_msg": "Drop to analyze",
     "paa_h2": "People also ask",
     "glossary_h1": "Twitch Downloader Glossary",
-    "glossary_sub": "Plain-English definitions of the Twitch terms behind downloading — VOD, clip, m3u8 and more.",
+    "glossary_sub": "Plain-English definitions of the Twitch terms behind downloading: VOD, clip, highlight, m3u8, source quality, transcode, retention and DMCA-muted audio.",
     "nav_glossary": "Glossary",
     "compare_h1": "Compare",
     "nav_compare": "Comparisons",
@@ -295,7 +295,7 @@ EN = {
 
     "nav_blog": "Blog",
     "blog_h1": "Twitch Downloader Blog: Guides & Tips",
-    "blog_sub": "Step-by-step guides to download Twitch VODs, clips and live streams.",
+    "blog_sub": "Step-by-step guides to download Twitch VODs, clips and live streams — plus retention rules, quality tiers, chat exports and what to do when a download fails.",
     "blog_read": "Read guide →",
     "blog_back": "← Back to the Twitch Downloader",
     "blog_related": "Related guides",
