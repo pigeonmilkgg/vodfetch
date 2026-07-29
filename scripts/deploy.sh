@@ -61,11 +61,20 @@ if [ "${1:-}" = "--build-only" ]; then echo "==> --build-only: fertig."; exit 0;
 echo "==> Deploy (Direct-Upload, --no-build zwingend)"
 netlify deploy --prod --dir=dist --functions=netlify/functions --no-build --site="$SITE_ID"
 
-echo "==> Live-Verify"
+# Live-Verify mit Wiederholung: Netlify schaltet atomar um und liefert in genau diesem
+# Moment kurz 5xx. Ein einzelner Fehlversuch ist deshalb KEIN Deploy-Fehler — erst wenn
+# eine URL nach mehreren Anläufen nicht 200 liefert, ist wirklich etwas kaputt.
+echo "==> Live-Verify (bis zu 4 Versuche je URL)"
 for P in "/" "/sitemap.xml" "/llms.txt"; do
-  CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://vodfetch.com$P")
+  CODE=""
+  for TRY in 1 2 3 4; do
+    CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://vodfetch.com$P?cb=$$$TRY")
+    [ "$CODE" = "200" ] && break
+    echo "    $P -> $CODE (Versuch $TRY, warte…)"
+    sleep 3
+  done
   echo "    $P -> $CODE"
-  [ "$CODE" = "200" ] || { echo "ABBRUCH: $P liefert $CODE" >&2; exit 1; }
+  [ "$CODE" = "200" ] || { echo "ABBRUCH: $P liefert dauerhaft $CODE" >&2; exit 1; }
 done
 
 echo "==> IndexNow (Base-URL zwingend gesetzt)"
