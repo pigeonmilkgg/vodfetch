@@ -92,6 +92,7 @@ EN = {
     # dem Download, weil der Ton nicht rekonstruierbar ist, sobald nur noch die stummen Segmente
     # ausgeliefert werden. Kein anderes Browser-Tool weist das aus.
     "mute_warn": "⚠ Twitch has muted {d} of this video for copyright ({n} segments). Those parts download without sound — no tool can restore audio Twitch no longer serves.",
+    "chat_fmt_label": "Chat export format",
     "trim_note": "Cuts land on segment boundaries (a second or two either side), not exact frames.",
     "cb_partner": "This channel is a Twitch Partner — past broadcasts are typically kept for up to 60 days.",
     "cb_affiliate": "This channel is a Twitch Affiliate — past broadcasts are typically kept for about 14 days, so save what you want soon.",
@@ -352,6 +353,7 @@ DE = {
     "nav_colophon": "Wie diese Seite gebaut ist",
     "cb_recent_h": "Letzte VODs & Clips",
     "mute_warn": "⚠ Twitch hat {d} dieses Videos aus Urheberrechtsgründen stummgeschaltet ({n} Segmente). Diese Teile werden ohne Ton geladen — den Ton kann kein Tool zurückholen.",
+    "chat_fmt_label": "Chat-Exportformat",
     "trim_note": "Schnitte liegen auf Segmentgrenzen (ein bis zwei Sekunden Toleranz), nicht framegenau.",
     "cb_partner": "Dieser Channel ist Twitch-Partner — vergangene Streams bleiben meist bis zu 60 Tage erhalten.",
     "cb_affiliate": "Dieser Channel ist Twitch-Affiliate — vergangene Streams bleiben meist etwa 14 Tage erhalten. Am besten bald sichern.",

@@ -595,6 +595,7 @@ def _tool_card_html(t: dict, lang: str) -> str:
             </div>
           </div>
           <button class="ghost hidden" id="chatBtn" onclick="downloadChat()">{esc(t["tool_chat"])}</button>
+            <select id="chatFmt" class="chatfmt" aria-label="{esc(t.get("chat_fmt_label", "Chat format"))}"><option value="txt">.txt</option><option value="json">.json</option><option value="srt">.srt</option><option value="vtt">.vtt</option></select>
           <button class="ghost hidden" id="chapterBtn" onclick="downloadChapters()" title="{esc(t.get("tool_chapters_hint", ""))}">{esc(t.get("tool_chapters", "⬇ Chapters (.txt)"))}</button>
           <button class="ghost hidden" id="gifBtn" onclick="makeGif()" title="{esc(t["tool_gif_hint"])}">{esc(t["tool_gif"])}</button>
         </div>
@@ -1155,6 +1156,7 @@ CSS = r"""
 .yrlist .yr{width:4.2em;color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
 .yrlist .yrbar{height:10px;min-width:3px;border-radius:999px;background:linear-gradient(90deg,var(--purple),var(--purple2));display:block}
 .yrlist .yrn{color:var(--muted);font-variant-numeric:tabular-nums}
+.chatfmt{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 8px;font-size:13px;margin-left:6px}
 .mutewarn{margin:10px 0 0;padding:9px 13px;border-radius:9px;background:rgba(255,180,60,.10);border:1px solid rgba(255,180,60,.30);color:#ffcc80;font-size:14px;line-height:1.45}
 .trimhint.dim{opacity:.72;font-size:13px;margin-top:-4px}
 .chq{margin:16px 0;padding:14px 18px;border-left:3px solid var(--purple);background:var(--panel);border-radius:0 10px 10px 0}
@@ -1640,14 +1642,16 @@ function parseMedia(text,base){var segs=[],ended=false,target=2,dur=0;
   var cum=0,mutedDur=0,mutedN=0;segs.forEach(function(s){s.start=cum;cum+=s.dur;if(s.muted){mutedDur+=s.dur;mutedN++}});
   return{segs:segs,ended:ended,target:target,total:cum,mutedDur:mutedDur,mutedN:mutedN}}
 async function clipInfo(slug){
-  var q='query($s:ID!){clip(slug:$s){title durationSeconds viewCount createdAt thumbnailURL(width:480,height:272) game{displayName} broadcaster{displayName profileImageURL(width:70)} videoQualities{quality frameRate sourceURL} playbackAccessToken(params:{platform:"web",playerBackend:"mediaplayer",playerType:"site"}){signature value}}}';
+  var q='query($s:ID!){clip(slug:$s){title durationSeconds viewCount createdAt videoOffsetSeconds video{id} thumbnailURL(width:480,height:272) game{displayName} broadcaster{displayName profileImageURL(width:70)} videoQualities{quality frameRate sourceURL} playbackAccessToken(params:{platform:"web",playerBackend:"mediaplayer",playerType:"site"}){signature value}}}';
   var d=await gqlReq({query:q,variables:{s:slug}});var c=d&&d.data&&d.data.clip;
   if(!c)throw new Error('Clip not found or deleted');var tok=c.playbackAccessToken||{};var vq=c.videoQualities||[];
   if(!vq.length||!tok.signature)throw new Error('Clip not available');
   var quals=vq.map(function(v){return{url:v.sourceURL+'?sig='+tok.signature+'&token='+encodeURIComponent(tok.value),is_source:false,clip:true,
     label:(v.quality||'?')+'p'+(v.frameRate>0?Math.round(v.frameRate):'')}});
   if(quals[0])quals[0].is_source=true;var b=c.broadcaster||{};
-  return{title:c.title,author:b.displayName,duration:c.durationSeconds,qualities:quals,
+  /* Clip-Chat haengt am Eltern-VOD. Beide Felder sind null, sobald das VOD abgelaufen ist —
+     Clips ueberleben ihr VOD, der Chat nicht. */
+  return{title:c.title,author:b.displayName,duration:c.durationSeconds,qualities:quals,vodId:(c.video||{}).id||null,vodOffset:c.videoOffsetSeconds||0,
     meta:{kind:'clip',title:c.title,author:b.displayName,dur:c.durationSeconds,thumb:c.thumbnailURL,avatar:b.profileImageURL,game:(c.game||{}).displayName,views:c.viewCount,date:c.createdAt}}}
 async function vodLiveInfo(ref){var token,usher,d;
   if(ref.kind==='vod'){d=await gqlReq({query:'query($id:ID!){videoPlaybackAccessToken(id:$id,params:{platform:"web",playerBackend:"mediaplayer",playerType:"embed"}){value signature}}',variables:{id:ref.id}});
@@ -1678,12 +1682,16 @@ async function clientAnalyze(){var b=$('analyzeBtn');b.disabled=true;b.textConte
       info=ref.kind==='clip'?await clipInfo(ref.id):await vodLiveInfo(ref);
     }
     clientQ=info.qualities;curMeta=info.meta||{kind:ref.kind};
+    /* Clip: Eltern-VOD + Offset auf den Ref uebernehmen, damit downloadChat() den Chat
+       des Clips aus dem VOD ziehen kann. Beide sind null, wenn das VOD abgelaufen ist. */
+    if(ref.kind==='clip'){ref.vodId=info.vodId||null;ref.vodOffset=info.vodOffset||0;ref.dur=info.duration||0}
+
     renderPreview(info,ref.kind);
     var sel=$('quality');sel.innerHTML='';
     info.qualities.forEach(function(q,i){var o=document.createElement('option');o.value=String(i);o.textContent=(q.is_source?'★ ':'')+q.label;sel.appendChild(o)});
     sel.value='0';
     if(G('trimBox'))G('trimBox').classList.add('hidden');if(G('trimOn'))G('trimOn').checked=false;if(G('trimBody'))G('trimBody').classList.add('hidden');trim={on:false,start:0,end:0};
-    if(G('chatBtn'))G('chatBtn').classList.toggle('hidden',ref.kind!=='vod');
+    if(G('chatBtn'))G('chatBtn').classList.toggle('hidden',!(ref.kind==='vod'||(ref.kind==='clip'&&ref.vodId)));
     if(G('chapterBtn'))G('chapterBtn').classList.toggle('hidden',!(ref.kind==='vod'&&curMeta&&curMeta.chapters&&curMeta.chapters.length>0));
     if(G('filename'))G('filename').value='';
     if(ref.kind==='vod'){try{var m=await loadMedia(0);totalDur=m.total;trim.end=totalDur;
@@ -1790,20 +1798,41 @@ async function dlSegments(ref,q,name){
   }else{log('Downloading '+list.length+' segments → TS…');await pump(list,list.length)}
   await sink.close();if(sink.blob)saveBlob(sink.blob(audio?'audio/aac':'video/mp2t'),name+ext);
   log('✓ Done: '+name+ext,'ok');if(ext==='.ts'||ext==='.aac')log('ℹ Plays in VLC; for MP4 choose Format → MP4.','ok');addRecent(name+ext);flashOk()}
-async function downloadChat(){if(!clientRef||clientRef.kind!=='vod')return;var btn=$('chatBtn');btn.disabled=true;clientStop=false;
+function chatTs(t,sep){var h=Math.floor(t/3600),m=Math.floor(t%3600/60),x=Math.floor(t%60),ms=Math.round((t-Math.floor(t))*1000);return (h<10?'0':'')+h+':'+(m<10?'0':'')+m+':'+(x<10?'0':'')+x+sep+('00'+ms).slice(-3)}
+function chatBuild(rows,fmt,id){
+  if(fmt==='json')return{blob:JSON.stringify({video:id,count:rows.length,messages:rows},null,1),mime:'application/json',ext:'_chat.json'};
+  if(fmt==='srt'||fmt==='vtt'){var sep=fmt==='srt'?',':'.',out=fmt==='vtt'?['WEBVTT',''] :[];
+    rows.forEach(function(r,n){var st=r.off,nx=rows[n+1]?rows[n+1].off:st+3;      var en=Math.min(Math.max(st+1.5,Math.min(nx,st+5)),st+5); if(en<=st)en=st+1.5;
+      if(fmt==='srt')out.push(String(n+1));
+      out.push(chatTs(st,sep)+' --> '+chatTs(en,sep));out.push(r.name+': '+r.msg);out.push('')});
+    return{blob:out.join('\n'),mime:'text/plain',ext:fmt==='srt'?'_chat.srt':'_chat.vtt'}}
+  return{blob:rows.map(function(r){return '['+ft(r.off)+'] '+r.name+': '+r.msg}).join('\n'),mime:'text/plain',ext:'_chat.txt'}}
+async function downloadChat(){if(!clientRef)return;var btn=$('chatBtn');btn.disabled=true;clientStop=false;
+  var fmt=(G('chatFmt')||{}).value||'txt';
   $('progressCard').classList.remove('hidden');log('Downloading chat…');
-  try{var cursor=null,lines=[],n=0;
-    var Q='query($id:ID!,$cursor:Cursor){video(id:$id){comments(contentOffsetSeconds:0,first:100,after:$cursor){edges{cursor node{contentOffsetSeconds commenter{displayName} message{fragments{text}}}} pageInfo{hasNextPage}}}}';
+  try{
+    /* Clips haben keine eigene Kommentar-Liste: der Chat haengt am ELTERN-VOD. Wir nehmen die
+       Video-ID des Clips und den Offset, damit auch Clips einen Chatverlauf bekommen. */
+    var vid=clientRef.id,base=0;
+    if(clientRef.kind==='clip'){if(!clientRef.vodId)throw new Error('No chat available for this clip');vid=clientRef.vodId;base=clientRef.vodOffset||0}
+    var cursor=null,rows=[],n=0;
+    var Q='query($id:ID!,$cursor:Cursor,$off:Int!){video(id:$id){comments(contentOffsetSeconds:$off,first:100,after:$cursor){edges{cursor node{contentOffsetSeconds commenter{displayName login} message{userColor userBadges{setID} fragments{text}}}} pageInfo{hasNextPage}}}}';
     for(var g=0;g<3000;g++){if(clientStop)break;
-      var d=await gqlReq({query:Q,variables:{id:clientRef.id,cursor:cursor}});
+      var d=await gqlReq({query:Q,variables:{id:vid,cursor:cursor,off:Math.floor(base)}});
       var c=d&&d.data&&d.data.video&&d.data.video.comments;if(!c)break;var edges=c.edges||[];
-      edges.forEach(function(e){var nd=e.node||{};var off=nd.contentOffsetSeconds||0;var who=(nd.commenter||{}).displayName||'?';
-        var msg=((nd.message||{}).fragments||[]).map(function(f){return f.text}).join('');lines.push('['+ft(off)+'] '+who+': '+msg);n++});
+      var stop=false;
+      edges.forEach(function(e){var nd=e.node||{};var off=(nd.contentOffsetSeconds||0);
+        if(clientRef.kind==='clip'&&off>base+(clientRef.dur||60)){stop=true;return}
+        var cm=nd.commenter||{},mg=nd.message||{};
+        rows.push({off:clientRef.kind==='clip'?Math.max(0,off-base):off,name:cm.displayName||'?',login:cm.login||'',
+          color:mg.userColor||null,badges:(mg.userBadges||[]).map(function(b){return b.setID}).filter(Boolean),
+          msg:(mg.fragments||[]).map(function(f){return f.text}).join('')});n++});
       $('statLeft').textContent=n+' messages';
-      if(!c.pageInfo||!c.pageInfo.hasNextPage||!edges.length)break;cursor=edges[edges.length-1].cursor}
-    if(!lines.length)throw new Error('No chat available for this VOD');
-    saveBlob(new Blob([lines.join('\n')],{type:'text/plain'}),safeName(clientRef.id)+'_chat.txt');
-    log('✓ Chat saved ('+n+' messages)','ok')}
+      if(stop||!c.pageInfo||!c.pageInfo.hasNextPage||!edges.length)break;cursor=edges[edges.length-1].cursor}
+    if(!rows.length)throw new Error(clientRef.kind==='clip'?'No chat available for this clip':'No chat available for this VOD');
+    var b=chatBuild(rows,fmt,vid);
+    saveBlob(new Blob([b.blob],{type:b.mime}),safeName(clientRef.id)+b.ext);
+    log('✓ Chat saved ('+n+' messages, '+fmt.toUpperCase()+')','ok')}
   catch(e){log('✗ '+((e&&e.message)||String(e)),'err')}finally{btn.disabled=false}}
 function downloadChapters(){if(!clientRef||clientRef.kind!=='vod')return;var ch=(curMeta&&curMeta.chapters)||[];if(!ch.length)return;
   var lines=ch.map(function(c){return '['+ft(Math.round((c.positionMilliseconds||0)/1000))+'] '+(c.description||'—')});
